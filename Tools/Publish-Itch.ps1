@@ -124,7 +124,7 @@ if (-not (Test-Path -LiteralPath $butlerExecutable -PathType Leaf)) {
     New-Item -ItemType Directory -Force -Path $butlerDirectory | Out-Null
     $archive = Join-Path $butlerDirectory 'butler.zip'
     Invoke-WebRequest `
-        -Uri 'https://broth.itch.ovh/butler/windows-amd64/LATEST/archive/default' `
+        -Uri 'https://broth.itch.zone/butler/windows-amd64/LATEST/archive/default' `
         -OutFile $archive
     Expand-Archive -LiteralPath $archive -DestinationPath $butlerDirectory -Force
     Remove-Item -LiteralPath $archive -Force
