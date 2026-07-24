@@ -29,7 +29,7 @@ namespace CountDown
         private GUIStyle countStyle;
         private GUIStyle helpStyle;
         private GUIStyle aimStyle;
-        private GUIStyle versionStyle;
+        private Texture2D buildVersionTexture;
         private int moveTouchId = -1;
         private int aimTouchId = -1;
         private Vector2 moveTouchOrigin;
@@ -693,11 +693,6 @@ namespace CountDown
                 fontSize = Mathf.Max(13, Mathf.RoundToInt(Screen.height * .021f)),
                 normal = { textColor = Color.white }
             };
-            versionStyle = new GUIStyle(helpStyle)
-            {
-                alignment = TextAnchor.UpperRight,
-                normal = { textColor = new Color(.75f, .78f, .82f, .9f) }
-            };
         }
 
         private void OnGUI()
@@ -732,14 +727,82 @@ namespace CountDown
 
         private void DrawBuildVersion()
         {
+            if (buildVersionTexture == null)
+                buildVersionTexture = CreateBuildVersionTexture(
+                    "BUILD " + Application.version);
+
             Rect safe = Screen.safeArea;
-            float width = Mathf.Min(210f, Mathf.Max(130f, safe.width * .32f));
+            float pixelSize = Mathf.Clamp(Mathf.Round(Screen.height / 360f), 2f, 4f);
+            float textWidth = buildVersionTexture.width * pixelSize;
+            float textHeight = buildVersionTexture.height * pixelSize;
+            float width = textWidth + 16f;
+            float height = textHeight + 16f;
             float x = Mathf.Max(8f, safe.xMax - width - 12f);
             float y = Mathf.Max(8f, Screen.height - safe.yMax + 12f);
-            Rect panel = new Rect(x, y, width, 30f);
+            Rect panel = new Rect(x, y, width, height);
             DrawPanel(panel, new Color(.02f, .025f, .03f, .9f));
-            GUI.Label(new Rect(panel.x + 8f, panel.y + 5f,
-                panel.width - 16f, 20f), "BUILD " + Application.version, versionStyle);
+            GUI.color = new Color(.82f, .86f, .92f);
+            GUI.DrawTexture(new Rect(panel.x + 8f, panel.y + 8f,
+                textWidth, textHeight), buildVersionTexture, ScaleMode.StretchToFill, true);
+            GUI.color = Color.white;
+        }
+
+        private static Texture2D CreateBuildVersionTexture(string text)
+        {
+            const int glyphWidth = 3;
+            const int glyphHeight = 5;
+            const int advance = 4;
+            int width = Mathf.Max(1, text.Length * advance - 1);
+            var texture = new Texture2D(width, glyphHeight, TextureFormat.RGBA32, false)
+            {
+                name = "Embedded Build Version",
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Clamp
+            };
+            var pixels = new Color32[width * glyphHeight];
+
+            for (int characterIndex = 0; characterIndex < text.Length; characterIndex++)
+            {
+                string glyph = VersionGlyph(char.ToUpperInvariant(text[characterIndex]));
+                for (int row = 0; row < glyphHeight; row++)
+                for (int column = 0; column < glyphWidth; column++)
+                {
+                    if (glyph[row * glyphWidth + column] != '1') continue;
+                    int x = characterIndex * advance + column;
+                    int y = glyphHeight - row - 1;
+                    pixels[y * width + x] = new Color32(255, 255, 255, 255);
+                }
+            }
+
+            texture.SetPixels32(pixels);
+            texture.Apply(false, true);
+            return texture;
+        }
+
+        private static string VersionGlyph(char character)
+        {
+            switch (character)
+            {
+                case 'B': return "110101110101110";
+                case 'U': return "101101101101111";
+                case 'I': return "111010010010111";
+                case 'L': return "100100100100111";
+                case 'D': return "110101101101110";
+                case '0': return "111101101101111";
+                case '1': return "010110010010111";
+                case '2': return "111001111100111";
+                case '3': return "111001111001111";
+                case '4': return "101101111001001";
+                case '5': return "111100111001111";
+                case '6': return "111100111101111";
+                case '7': return "111001001001001";
+                case '8': return "111101111101111";
+                case '9': return "111101111001111";
+                case '.': return "000000000000010";
+                case '-': return "000000111000000";
+                case ' ': return "000000000000000";
+                default: return "111101101101111";
+            }
         }
 
         private void DrawAimState()

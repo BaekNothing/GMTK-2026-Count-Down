@@ -65,6 +65,12 @@ public static class CountDownValidation
             Require(typeof(CountDownGame).GetMethod("DrawBuildVersion",
                 BindingFlags.Instance | BindingFlags.NonPublic) != null,
                 "A safe-area anchored build version overlay is required.");
+            Require(typeof(CountDownGame).GetMethod("CreateBuildVersionTexture",
+                BindingFlags.Static | BindingFlags.NonPublic) != null,
+                "Build version text must use an embedded WebGL-safe bitmap font.");
+            Require(typeof(CountDownGame).GetField("versionStyle",
+                BindingFlags.Instance | BindingFlags.NonPublic) == null,
+                "Build version visibility must not depend on the runtime GUI font.");
 
             Debug.Log("COUNT DOWN runtime validation passed.");
             EditorApplication.Exit(0);

@@ -28,5 +28,6 @@ The distance from each initial touch point controls stick strength.
 - Moved the arena rails into the background render layer with the floor.
 - Anchored the build version to the display safe area's upper-right corner.
 - Added the build version to the upper-right corner.
+- Made the upper-right build version independent of browser-installed fonts.
 - Forced the arena floor behind all gameplay objects in WebGL.
 - Fixed fighters appearing buried in or hidden by the floor.
