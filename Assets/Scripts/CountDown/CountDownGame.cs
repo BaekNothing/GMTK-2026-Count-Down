@@ -14,6 +14,10 @@ namespace CountDown
         private const float ArenaDepth = 16f;
         private const float BodyRadius = .48f;
         private const float BodyHeight = 1.7f;
+        private const float BodyVisualWidth = 1.08f;
+        private const float BodyVisualHeight = 1.72f;
+        private const float PlayerHitboxScale = .9f;
+        private const float EnemyHitboxScale = 1.1f;
         private const float FighterGroundHeight = .04f;
         private const int MaxHealth = 3;
         private const float NormalMoveSpeed = 5f;
@@ -254,16 +258,21 @@ namespace CountDown
         {
             var root = NewObject(displayName);
             root.transform.position = position;
-            var capsule = root.AddComponent<CapsuleCollider>();
-            capsule.radius = BodyRadius;
-            capsule.height = BodyHeight;
-            capsule.center = Vector3.up * (BodyHeight * .5f);
+            float hitboxScale = isPlayer
+                ? PlayerHitboxScale : EnemyHitboxScale;
+            var hitbox = root.AddComponent<BoxCollider>();
+            hitbox.size = new Vector3(
+                BodyVisualWidth * hitboxScale,
+                BodyVisualHeight * hitboxScale,
+                BodyVisualWidth * hitboxScale);
+            hitbox.center = Vector3.up * (hitbox.size.y * .5f);
 
             var body = GameObject.CreatePrimitive(PrimitiveType.Cube);
             body.name = resourcePrefix + " Panel";
             body.transform.SetParent(root.transform);
             body.transform.localPosition = new Vector3(0f, .88f, 0f);
-            body.transform.localScale = new Vector3(1.08f, 1.72f, .16f);
+            body.transform.localScale = new Vector3(
+                BodyVisualWidth, BodyVisualHeight, .16f);
             body.GetComponent<Renderer>().material = MaterialFor(
                 "Materials/" + resourcePrefix, color);
             Destroy(body.GetComponent<Collider>());

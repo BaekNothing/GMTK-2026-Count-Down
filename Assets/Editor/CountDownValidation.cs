@@ -40,10 +40,22 @@ public static class CountDownValidation
                 "The player requires melee range and cooldown ground rings.");
             Require(CountObjects("Fire Warning Placeholder") == 2,
                 "Each initial enemy requires a muzzle warning placeholder.");
-            Require(Find("PLAYER").GetComponent<CapsuleCollider>() != null,
-                "Player body hitbox is required.");
-            Require(Find("TARGET").GetComponent<CapsuleCollider>() != null,
-                "Enemy body hitbox is required.");
+            BoxCollider playerHitbox =
+                Find("PLAYER").GetComponent<BoxCollider>();
+            BoxCollider enemyHitbox =
+                Find("TARGET").GetComponent<BoxCollider>();
+            Require(playerHitbox != null,
+                "Player requires an invisible box hitbox.");
+            Require(enemyHitbox != null,
+                "Enemies require invisible box hitboxes.");
+            Require(Mathf.Approximately(playerHitbox.size.x, .972f) &&
+                Mathf.Approximately(playerHitbox.size.y, 1.548f) &&
+                Mathf.Approximately(playerHitbox.size.z, .972f),
+                "The player hitbox must be 10 percent smaller than the visible body.");
+            Require(Mathf.Approximately(enemyHitbox.size.x, 1.188f) &&
+                Mathf.Approximately(enemyHitbox.size.y, 1.892f) &&
+                Mathf.Approximately(enemyHitbox.size.z, 1.188f),
+                "Enemy hitboxes must be 10 percent larger than their visible bodies.");
             Require(Find("PLAYER").transform.position.y > 0f &&
                 Find("TARGET").transform.position.y > 0f,
                 "Fighters must remain visibly above the arena floor.");
@@ -74,6 +86,9 @@ public static class CountDownValidation
                 "Both gamepad sticks must have dedicated legacy input axes.");
             Require(HasConstant("EnemyTurnSpeed", 63f),
                 "Enemy turn speed must be 30% slower than baseline.");
+            Require(HasConstant("PlayerHitboxScale", .9f) &&
+                HasConstant("EnemyHitboxScale", 1.1f),
+                "Player and enemy box hitbox scales must remain asymmetric.");
             Require(HasConstant("ArenaWidth", 24f) &&
                 HasConstant("ArenaDepth", 16f),
                 "The playable arena must be twice as wide and twice as deep.");

@@ -34,6 +34,9 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- Replaced fighter panel-like collision with invisible 3D box hitboxes so
+  side-angle shots connect reliably. Enemy hitboxes are 10% larger than their
+  visible bodies, while the player's is 10% smaller.
 - Character and fuse sprite animations now play at half speed.
 - Fuse wicks and flames are twice as large. Initial fuse length now matches the
   starting count, then shrinks smoothly as the countdown advances.
