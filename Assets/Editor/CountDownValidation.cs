@@ -43,9 +43,10 @@ public static class CountDownValidation
             Require(typeof(CountDownGame).GetMethod("UpdateTouchControls",
                 BindingFlags.Instance | BindingFlags.NonPublic) != null,
                 "Mobile touch controls are required.");
-            Require(typeof(CountDownGame).GetMethod("ScreenAimPoint",
-                BindingFlags.Instance | BindingFlags.NonPublic) != null,
-                "Horizontal-only aiming is required.");
+            Require(HasConstant("PlayerTurnSpeed", 135f),
+                "Player turn speed must be 50% faster than baseline.");
+            Require(HasConstant("EnemyTurnSpeed", 63f),
+                "Enemy turn speed must be 30% slower than baseline.");
 
             Debug.Log("COUNT DOWN runtime validation passed.");
             EditorApplication.Exit(0);
@@ -68,5 +69,13 @@ public static class CountDownValidation
     private static void Require(bool condition, string message)
     {
         if (!condition) throw new InvalidOperationException(message);
+    }
+
+    private static bool HasConstant(string name, float expected)
+    {
+        FieldInfo field = typeof(CountDownGame).GetField(
+            name, BindingFlags.Static | BindingFlags.NonPublic);
+        return field != null && Mathf.Approximately(
+            (float)field.GetRawConstantValue(), expected);
     }
 }

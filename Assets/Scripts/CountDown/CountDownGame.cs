@@ -35,10 +35,14 @@ namespace CountDown
         private Vector2 moveTouchPosition;
         private Vector2 aimTouchPosition;
         private Vector2 touchMove;
-        private float touchAim;
-        private float aimScreenX;
+        private Vector2 touchAim;
+        private Vector2 mouseAimOrigin;
+        private Vector2 mouseAimPosition;
+        private Vector2 aimDirection = Vector2.up;
         private bool touchAiming;
         private const float TouchStickRadius = 72f;
+        private const float PlayerTurnSpeed = 135f;
+        private const float EnemyTurnSpeed = 63f;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void EnsureGameExists()
@@ -51,7 +55,8 @@ namespace CountDown
         {
             Application.runInBackground = true;
             white = Texture2D.whiteTexture;
-            aimScreenX = Screen.width * .5f;
+            mouseAimOrigin = mouseAimPosition =
+                new Vector2(Screen.width * .5f, Screen.height * .5f);
             BuildWorld();
         }
 
@@ -290,16 +295,21 @@ namespace CountDown
             float speed = player.aiming ? 2f : 5f;
             player.root.position = ClampToArena(player.root.position + move * speed * dt);
 
-            if (touchAiming)
-                aimScreenX = Mathf.Clamp(aimScreenX + touchAim * Screen.width * .7f * dt,
-                    0f, Screen.width);
-            else
-                aimScreenX = Input.mousePosition.x;
-            Vector3 aimPoint = ScreenAimPoint(aimScreenX);
-            Vector3 direction = aimPoint - player.gunPivot.position;
-            direction.y = 0f;
-            if (direction.sqrMagnitude > .02f)
-                player.gunPivot.rotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
+            if (Input.GetMouseButtonDown(1))
+                mouseAimOrigin = mouseAimPosition = Input.mousePosition;
+            if (Input.GetMouseButton(1))
+                mouseAimPosition = Input.mousePosition;
+
+            Vector2 pointerAim = touchAiming
+                ? touchAim
+                : (mouseAimPosition - mouseAimOrigin) / TouchStickRadius;
+            if (player.aiming && pointerAim.sqrMagnitude > .01f)
+                aimDirection = pointerAim.normalized;
+
+            Vector3 direction = new Vector3(aimDirection.x, 0f, aimDirection.y);
+            Quaternion desired = Quaternion.LookRotation(direction, Vector3.up);
+            player.gunPivot.rotation = Quaternion.RotateTowards(
+                player.gunPivot.rotation, desired, PlayerTurnSpeed * dt);
 
             if (Input.GetKeyDown(KeyCode.Space) && Time.time >= meleeReadyAt)
                 StartCoroutine(Melee());
@@ -319,16 +329,18 @@ namespace CountDown
             shake = 0f;
             moveTouchId = aimTouchId = -1;
             touchMove = Vector2.zero;
-            touchAim = 0f;
+            touchAim = Vector2.zero;
             touchAiming = false;
-            aimScreenX = Screen.width * .5f;
+            aimDirection = Vector2.up;
+            mouseAimOrigin = mouseAimPosition =
+                new Vector2(Screen.width * .5f, Screen.height * .5f);
             BuildWorld();
         }
 
         private void UpdateTouchControls()
         {
             touchMove = Vector2.zero;
-            touchAim = 0f;
+            touchAim = Vector2.zero;
             touchAiming = false;
 
             for (int i = 0; i < Input.touchCount; i++)
@@ -367,8 +379,8 @@ namespace CountDown
                     else
                     {
                         aimTouchPosition = touch.position;
-                        touchAim = Mathf.Clamp(
-                            (aimTouchPosition.x - aimTouchOrigin.x) / TouchStickRadius, -1f, 1f);
+                        touchAim = Vector2.ClampMagnitude(
+                            (aimTouchPosition - aimTouchOrigin) / TouchStickRadius, 1f);
                         touchAiming = true;
                     }
                 }
@@ -422,7 +434,7 @@ namespace CountDown
             {
                 Quaternion desired = Quaternion.LookRotation(flatTarget.normalized, Vector3.up);
                 enemy.gunPivot.rotation = Quaternion.RotateTowards(
-                    enemy.gunPivot.rotation, desired, 90f * dt);
+                    enemy.gunPivot.rotation, desired, EnemyTurnSpeed * dt);
             }
             enemy.aiming = true;
         }
@@ -577,15 +589,6 @@ namespace CountDown
             value.z = Mathf.Clamp(value.z, -ArenaDepth * .5f + .65f, ArenaDepth * .5f - .65f);
             value.y = 0f;
             return value;
-        }
-
-        private Vector3 ScreenAimPoint(float screenX)
-        {
-            Ray ray = gameCamera.ScreenPointToRay(new Vector3(
-                screenX, Screen.height * .5f, 0f));
-            var plane = new Plane(Vector3.up, Vector3.up * .9f);
-            float enter;
-            return plane.Raycast(ray, out enter) ? ray.GetPoint(enter) : enemy.root.position;
         }
 
         private void UpdateCamera(bool immediate)
@@ -770,7 +773,11 @@ namespace CountDown
 
         private void DrawCrosshair()
         {
-            Vector2 mouse = new Vector2(aimScreenX, Screen.height * .5f);
+            Vector2 mouse;
+            if (touchAiming)
+                mouse = new Vector2(aimTouchPosition.x, Screen.height - aimTouchPosition.y);
+            else
+                mouse = new Vector2(mouseAimPosition.x, Screen.height - mouseAimPosition.y);
             Color color = player.hasTarget && player.aiming
                 ? new Color(.3f, 1f, .62f) : new Color(1f, 1f, 1f, .75f);
             GUI.color = color;

@@ -25,11 +25,11 @@ Material and audio replacements require no code changes. Sprite replacements
 should be imported as Sprite (2D and UI); their height is normalized
 automatically.
 
-Desktop controls: WASD move, hold right mouse to aim horizontally, Space bash,
-R restart after a result, Escape quit. The left mouse button is deliberately
-unused.
+Desktop controls: WASD move, hold right mouse and drag from the click point to
+choose a facing direction, Space bash, R restart after a result, Escape quit.
+The left mouse button is deliberately unused.
 
 Mobile controls: drag anywhere on the left half for analog movement and hold
-and drag anywhere on the right half to aim horizontally. Tap after a result to
-restart. Stick input strength is proportional to the distance from the initial
-touch point.
+and drag anywhere on the right half to choose a facing direction. Tap after a
+result to restart. Stick input strength is proportional to the distance from
+the initial touch point.

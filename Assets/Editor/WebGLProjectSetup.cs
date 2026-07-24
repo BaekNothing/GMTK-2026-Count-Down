@@ -73,8 +73,8 @@ public static class WebGLProjectSetup
   <!-- COUNT DOWN CONTROLS -->
   <section style=""max-width:960px;margin:18px auto;padding:16px 20px;color:#e5e7eb;background:#111827;font:16px/1.5 sans-serif;border-radius:10px"">
     <strong>HOW TO PLAY</strong><br>
-    Desktop: WASD to move · Hold right mouse to aim horizontally · Space to bash · R to restart<br>
-    Mobile: Drag the left side to move · Hold and drag the right side to aim · Tap after game over to restart
+    Desktop: WASD to move · Hold right mouse and drag from the click point to aim · Space to bash · R to restart<br>
+    Mobile: Drag the left side to move · Hold and drag the right side to aim in any direction · Tap after game over to restart
   </section>
 </body>";
         html = html.Replace("</body>", controls);
