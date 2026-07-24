@@ -33,6 +33,9 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- During the final 0.3 seconds before firing, aim assist expands to 120 degrees
+  and prioritizes the current lock to prevent last-moment stray shots.
+- The player now dims during the 1.5-second post-melee movement lock.
 - Pulling the camera back 15% gives the wide-screen arena more breathing room.
 - Melee now has a 1.5-second movement recovery and hits 10% beyond its visible
   trigger range.

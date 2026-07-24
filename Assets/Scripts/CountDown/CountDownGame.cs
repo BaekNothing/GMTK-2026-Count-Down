@@ -27,6 +27,8 @@ namespace CountDown
         private const int EnemyProjectileDamage = 1;
         private const float GamepadDeadzone = .2f;
         private const float AimAssistDegrees = 20f;
+        private const float FinalAimAssistDegrees = 120f;
+        private const float FinalAimAssistDuration = .3f;
         private const float FighterSeparation = BodyRadius * 2f + .12f;
         private const float EnemyLineAvoidanceRadius = 1.45f;
         private const float EnemyProjectileDodgeDistance = 3.2f;
@@ -49,6 +51,7 @@ namespace CountDown
         private const float MeleeHitRange = MeleeRange * 1.1f;
         private const float MeleeCooldown = 15f;
         private const float PlayerMeleeRecovery = 1.5f;
+        private const float PlayerMovementLockedBrightness = .58f;
         private const float CameraDistanceMultiplier = 1.15f;
 
         private enum InputMode
@@ -753,8 +756,24 @@ namespace CountDown
                 return Vector3.forward;
 
             Vector3 normalized = rawDirection.normalized;
+            bool finalStickyAim = player != null && player.count == 1 &&
+                player.countTimer >= 1f - FinalAimAssistDuration;
+            float assistDegrees = finalStickyAim
+                ? FinalAimAssistDegrees : AimAssistDegrees;
+
+            if (finalStickyAim && player.opponent != null &&
+                !player.opponent.dead)
+            {
+                Vector3 toLockedTarget = player.opponent.root.position +
+                    Vector3.up * .85f - origin;
+                toLockedTarget.y = 0f;
+                if (toLockedTarget.sqrMagnitude > .01f &&
+                    Vector3.Angle(normalized, toLockedTarget) <= assistDegrees)
+                    return toLockedTarget.normalized;
+            }
+
             Fighter best = null;
-            float bestAngle = AimAssistDegrees + .001f;
+            float bestAngle = assistDegrees + .001f;
             float bestDistance = float.MaxValue;
             for (int i = 0; i < enemies.Count; i++)
             {
@@ -766,7 +785,7 @@ namespace CountDown
                 float distance = toCandidate.magnitude;
                 if (distance < .01f) continue;
                 float angle = Vector3.Angle(normalized, toCandidate / distance);
-                if (angle > AimAssistDegrees) continue;
+                if (angle > assistDegrees) continue;
 
                 bool moreCentered = angle < bestAngle - .5f;
                 bool overlapsCurrent = Mathf.Abs(angle - bestAngle) <= .5f;
@@ -1190,8 +1209,17 @@ namespace CountDown
             {
                 float flash = fighter.hitFlash > 0f &&
                     Mathf.PingPong(fighter.hitFlash * 12f, 1f) > .35f ? 1f : 0f;
+                Color presentationColor = fighter.baseBodyColor;
+                if (fighter.isPlayer && Time.time < fighter.stunnedUntil)
+                {
+                    presentationColor = new Color(
+                        presentationColor.r * PlayerMovementLockedBrightness,
+                        presentationColor.g * PlayerMovementLockedBrightness,
+                        presentationColor.b * PlayerMovementLockedBrightness,
+                        presentationColor.a);
+                }
                 fighter.bodyRenderer.material.color = Color.Lerp(
-                    fighter.baseBodyColor, Color.white, flash);
+                    presentationColor, Color.white, flash);
                 fighter.bodyRenderer.enabled = !(fighter.hitFlash > .35f &&
                     fighter.hitFlash < .75f);
             }

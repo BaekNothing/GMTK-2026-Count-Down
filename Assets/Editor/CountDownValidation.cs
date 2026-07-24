@@ -95,9 +95,11 @@ public static class CountDownValidation
                 BindingFlags.Instance | BindingFlags.NonPublic) != null,
                 "Mouse aiming must follow the current pointer position.");
             Require(HasConstant("AimAssistDegrees", 20f) &&
+                HasConstant("FinalAimAssistDegrees", 120f) &&
+                HasConstant("FinalAimAssistDuration", .3f) &&
                 typeof(CountDownGame).GetMethod("ApplyAimAssist",
                     BindingFlags.Instance | BindingFlags.NonPublic) != null,
-                "Player aim must snap to the nearest overlapping target within 20 degrees.");
+                "Player aim must expand from 20 to 120 degrees for the final 0.3 seconds.");
             Require(HasConstant("EnemyLineAvoidanceRadius", 1.45f) &&
                 HasConstant("EnemyProjectileDodgeDistance", 3.2f) &&
                 typeof(CountDownGame).GetMethod("TryGetProjectileEscape",
@@ -130,6 +132,7 @@ public static class CountDownValidation
                 HasConstant("MeleeHitRange", 1.98f) &&
                 HasConstant("MeleeCooldown", 15f) &&
                 HasConstant("PlayerMeleeRecovery", 1.5f) &&
+                HasConstant("PlayerMovementLockedBrightness", .58f) &&
                 HasConstant("HitKnockbackDistance", .42f) &&
                 typeof(CountDownGame).GetMethod("HasEnemyInMeleeRange",
                     BindingFlags.Instance | BindingFlags.NonPublic) != null &&
@@ -137,7 +140,7 @@ public static class CountDownValidation
                     BindingFlags.Instance | BindingFlags.NonPublic) != null &&
                 typeof(CountDownGame).GetMethod("TryAutoMelee",
                     BindingFlags.Instance | BindingFlags.NonPublic) != null,
-                "Melee must hit 10% beyond its trigger range and immobilize the player for 1.5 seconds.");
+                "Melee recovery must immobilize and visibly dim the player for 1.5 seconds.");
             Require(HasConstant("CameraDistanceMultiplier", 1.15f),
                 "The gameplay camera must pull back by 15 percent.");
             Require(typeof(CountDownGame).GetMethod("ResetEnemyCount",
