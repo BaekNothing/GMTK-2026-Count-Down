@@ -33,6 +33,12 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- Pulling the camera back 15% gives the wide-screen arena more breathing room.
+- Melee now has a 1.5-second movement recovery and hits 10% beyond its visible
+  trigger range.
+- Player projectiles now deal 3 damage; melee and enemy projectiles deal 1.
+- Enemy countdown rerolls now bias high when the group is mostly low and bias
+  low when the group is mostly high.
 - Added a ground ring showing the player's melee range and its 15-second
   cooldown progress.
 - Melee now locks in enemies already in range, includes their body radius, and

@@ -81,8 +81,10 @@ public static class CountDownValidation
                 HasConstant("EmergencyDodgeDuration", .5f),
                 "Releasing aim must grant a 2x emergency dodge for 0.5 seconds.");
             Require(HasConstant("ProjectileSpeed", 11.7f) &&
-                HasConstant("ProjectileRadius", .16f),
-                "Countdown weapons must fire visible, dodgeable projectiles.");
+                HasConstant("ProjectileRadius", .16f) &&
+                HasConstant("PlayerProjectileDamage", 3) &&
+                HasConstant("EnemyProjectileDamage", 1),
+                "Player projectiles must deal 3 damage while enemy projectiles deal 1.");
             Require(typeof(CountDownGame).GetMethod("FireProjectile",
                 BindingFlags.Instance | BindingFlags.NonPublic) != null,
                 "Hitscan damage must be replaced by projectile travel.");
@@ -125,7 +127,9 @@ public static class CountDownValidation
                 HasConstant("EnemyMaxCountFloor", 7),
                 "Enemy movement speed must rise and starting counts must fall with stage.");
             Require(HasConstant("MeleeRange", 1.8f) &&
+                HasConstant("MeleeHitRange", 1.98f) &&
                 HasConstant("MeleeCooldown", 15f) &&
+                HasConstant("PlayerMeleeRecovery", 1.5f) &&
                 HasConstant("HitKnockbackDistance", .42f) &&
                 typeof(CountDownGame).GetMethod("HasEnemyInMeleeRange",
                     BindingFlags.Instance | BindingFlags.NonPublic) != null &&
@@ -133,7 +137,12 @@ public static class CountDownValidation
                     BindingFlags.Instance | BindingFlags.NonPublic) != null &&
                 typeof(CountDownGame).GetMethod("TryAutoMelee",
                     BindingFlags.Instance | BindingFlags.NonPublic) != null,
-                "Melee must show its range and cooldown, hit reliably, and knock targets back.");
+                "Melee must hit 10% beyond its trigger range and immobilize the player for 1.5 seconds.");
+            Require(HasConstant("CameraDistanceMultiplier", 1.15f),
+                "The gameplay camera must pull back by 15 percent.");
+            Require(typeof(CountDownGame).GetMethod("ResetEnemyCount",
+                BindingFlags.Instance | BindingFlags.NonPublic) != null,
+                "Enemy countdown rolls must balance against other living enemies.");
             Require(HasConstant("EnemyFireWarningDuration", .5f) &&
                 typeof(CountDownGame).GetMethod("UpdateEnemyFireWarning",
                     BindingFlags.Instance | BindingFlags.NonPublic) != null,

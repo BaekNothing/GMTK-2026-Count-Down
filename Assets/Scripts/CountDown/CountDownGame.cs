@@ -23,6 +23,8 @@ namespace CountDown
         private const float ProjectileSpeed = 11.7f;
         private const float ProjectileRadius = .16f;
         private const float ProjectileLifetime = 4f;
+        private const int PlayerProjectileDamage = 3;
+        private const int EnemyProjectileDamage = 1;
         private const float GamepadDeadzone = .2f;
         private const float AimAssistDegrees = 20f;
         private const float FighterSeparation = BodyRadius * 2f + .12f;
@@ -44,7 +46,10 @@ namespace CountDown
         private const int EnemyMinCountFloor = 3;
         private const int EnemyMaxCountFloor = 7;
         private const float MeleeRange = 1.8f;
+        private const float MeleeHitRange = MeleeRange * 1.1f;
         private const float MeleeCooldown = 15f;
+        private const float PlayerMeleeRecovery = 1.5f;
+        private const float CameraDistanceMultiplier = 1.15f;
 
         private enum InputMode
         {
@@ -158,8 +163,8 @@ namespace CountDown
                     EnemyStageOneMinCount - (stage - 1));
                 spawned.countMax = Mathf.Max(EnemyMaxCountFloor,
                     EnemyStageOneMaxCount - (stage - 1));
-                spawned.ResetCount();
                 enemies.Add(spawned);
+                ResetEnemyCount(spawned);
             }
             player.opponent = null;
             player.hasTarget = false;
@@ -890,7 +895,38 @@ namespace CountDown
             StartCoroutine(MuzzleFlash(fighter));
             StartCoroutine(FireProjectile(fighter,
                 fighter.muzzle.position, fighter.muzzle.forward.normalized));
-            fighter.ResetCount();
+            if (fighter.isPlayer)
+                fighter.ResetCount();
+            else
+                ResetEnemyCount(fighter);
+        }
+
+        private void ResetEnemyCount(Fighter enemy)
+        {
+            float normalizedTotal = 0f;
+            int otherCount = 0;
+            for (int i = 0; i < enemies.Count; i++)
+            {
+                Fighter other = enemies[i];
+                if (other == enemy || other.dead) continue;
+                normalizedTotal += Mathf.InverseLerp(
+                    other.countMin, other.countMax, other.count);
+                otherCount++;
+            }
+
+            if (otherCount == 0)
+            {
+                enemy.ResetCount();
+                return;
+            }
+
+            float average = normalizedTotal / otherCount;
+            float exponent = Mathf.Lerp(.55f, 1.8f, average);
+            float weighted = Mathf.Pow(Random.value, exponent);
+            enemy.count = Mathf.RoundToInt(Mathf.Lerp(
+                enemy.countMin, enemy.countMax, weighted));
+            enemy.countTimer = 0f;
+            enemy.pulse = 1f;
         }
 
         private IEnumerator FireProjectile(Fighter source, Vector3 position,
@@ -951,7 +987,8 @@ namespace CountDown
                 trailObject.transform.position = position;
                 if (connected)
                 {
-                    Damage(source.opponent, 1, source);
+                    Damage(source.opponent, source.isPlayer
+                        ? PlayerProjectileDamage : EnemyProjectileDamage, source);
                     break;
                 }
 
@@ -996,7 +1033,7 @@ namespace CountDown
             for (int i = 0; i < enemies.Count; i++)
                 if (!enemies[i].dead && IsInMeleeRange(enemies[i]))
                     targets.Add(enemies[i]);
-            player.stunnedUntil = Time.time + .16f;
+            player.stunnedUntil = Time.time + PlayerMeleeRecovery;
             Vector3 original = player.gunPivot.localEulerAngles;
             float elapsed = 0f;
             while (elapsed < .14f)
@@ -1015,7 +1052,7 @@ namespace CountDown
                 if (target.dead) continue;
                 target.stunnedUntil = Time.time + .7f;
                 target.aiming = false;
-                target.ResetCount();
+                ResetEnemyCount(target);
                 Damage(target, 1, player);
                 hitCount++;
             }
@@ -1042,16 +1079,22 @@ namespace CountDown
         private bool HasEnemyInMeleeRange()
         {
             for (int i = 0; i < enemies.Count; i++)
-                if (!enemies[i].dead && IsInMeleeRange(enemies[i]))
+                if (!enemies[i].dead &&
+                    IsWithinMeleeDistance(enemies[i], MeleeRange))
                     return true;
             return false;
         }
 
         private bool IsInMeleeRange(Fighter target)
         {
+            return IsWithinMeleeDistance(target, MeleeHitRange);
+        }
+
+        private bool IsWithinMeleeDistance(Fighter target, float range)
+        {
             Vector3 offset = target.root.position - player.root.position;
             offset.y = 0f;
-            return offset.magnitude - BodyRadius <= MeleeRange;
+            return offset.magnitude - BodyRadius <= range;
         }
 
         private Fighter ClosestAliveEnemy()
@@ -1201,6 +1244,9 @@ namespace CountDown
                     1f - Mathf.Exp(-AimFeedbackSpeed * Time.deltaTime));
             Vector3 follow = new Vector3(player.root.position.x, 7.8f,
                 player.root.position.z - 8.8f);
+            Vector3 cameraOffset = follow - player.root.position;
+            follow = player.root.position +
+                cameraOffset * CameraDistanceMultiplier;
             if (shake > 0f)
                 follow += Random.insideUnitSphere * shake;
             gameCamera.transform.position = immediate ? follow :
