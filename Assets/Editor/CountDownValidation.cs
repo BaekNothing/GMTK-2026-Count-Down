@@ -37,6 +37,9 @@ public static class CountDownValidation
                 "Player body hitbox is required.");
             Require(Find("TARGET").GetComponent<CapsuleCollider>() != null,
                 "Enemy body hitbox is required.");
+            Require(Find("PLAYER").transform.position.y > 0f &&
+                Find("TARGET").transform.position.y > 0f,
+                "Fighters must remain visibly above the arena floor.");
             Require(typeof(CountDownGame).GetMethod("RestartGame",
                 BindingFlags.Instance | BindingFlags.NonPublic) != null,
                 "Safe in-place restart is required.");

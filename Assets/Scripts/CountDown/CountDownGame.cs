@@ -13,6 +13,7 @@ namespace CountDown
         private const float ArenaDepth = 8f;
         private const float BodyRadius = .48f;
         private const float BodyHeight = 1.7f;
+        private const float FighterGroundHeight = .04f;
         private const int MaxHealth = 3;
 
         private Fighter player;
@@ -86,9 +87,11 @@ namespace CountDown
             sun.transform.rotation = Quaternion.Euler(42f, -28f, 0f);
 
             CreateArena();
-            player = CreateFighter("PLAYER", true, new Vector3(0f, 0f, -2.75f),
+            player = CreateFighter("PLAYER", true,
+                new Vector3(0f, FighterGroundHeight, -2.75f),
                 new Color(.12f, .72f, 1f), "Player");
-            enemy = CreateFighter("TARGET", false, new Vector3(0f, 0f, 2.75f),
+            enemy = CreateFighter("TARGET", false,
+                new Vector3(0f, FighterGroundHeight, 2.75f),
                 new Color(1f, .24f, .18f), "Enemy");
             player.opponent = enemy;
             enemy.opponent = player;
@@ -587,7 +590,7 @@ namespace CountDown
         {
             value.x = Mathf.Clamp(value.x, -ArenaWidth * .5f + .65f, ArenaWidth * .5f - .65f);
             value.z = Mathf.Clamp(value.z, -ArenaDepth * .5f + .65f, ArenaDepth * .5f - .65f);
-            value.y = 0f;
+            value.y = FighterGroundHeight;
             return value;
         }
 
