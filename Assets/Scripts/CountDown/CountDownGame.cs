@@ -54,6 +54,9 @@ namespace CountDown
         private const float PlayerMovementLockedBrightness = .58f;
         private const float CameraDistanceMultiplier = 1.15f;
         private const float SpriteFramesPerSecond = 8f;
+        private const int FuseSegmentCount = 6;
+        private const float FuseLinkLength = .16f;
+        private const float PreFirePause = .42f;
 
         private enum InputMode
         {
@@ -333,11 +336,59 @@ namespace CountDown
                 fighter.animationState = "Idle";
                 fighter.animationStartedAt = Time.time;
             }
+            CreateFuseVisuals(fighter);
             if (isPlayer)
                 CreateMeleeRangeIndicator(fighter);
             else
                 CreateEnemyFireWarning(fighter);
             return fighter;
+        }
+
+        private void CreateFuseVisuals(Fighter fighter)
+        {
+            Sprite[] sprites = Resources.LoadAll<Sprite>("CountDown/Sprites/FuseSheet");
+            if (sprites.Length == 0) return;
+
+            Sprite segmentSprite = FindSprite(sprites, "Fuse_Segment_0");
+            fighter.fuseSegments = new SpriteRenderer[FuseSegmentCount];
+            fighter.fusePositions = new Vector3[FuseSegmentCount];
+            for (int i = 0; i < FuseSegmentCount; i++)
+            {
+                var segment = NewObject("Fuse Segment " + (i + 1));
+                segment.transform.SetParent(fighter.root, true);
+                var renderer = segment.AddComponent<SpriteRenderer>();
+                renderer.sprite = segmentSprite;
+                renderer.color = Color.Lerp(fighter.accent, new Color(.42f, .25f, .12f), .62f);
+                renderer.sortingOrder = 20;
+                segment.transform.localScale = Vector3.one * .28f;
+                fighter.fuseSegments[i] = renderer;
+            }
+
+            var flame = NewObject("Fuse Flame");
+            flame.transform.SetParent(fighter.root, true);
+            fighter.fuseFlame = flame.AddComponent<SpriteRenderer>();
+            fighter.fuseFlameFrames = new[]
+            {
+                FindSprite(sprites, "Fuse_Flame_0"),
+                FindSprite(sprites, "Fuse_Flame_1"),
+                FindSprite(sprites, "Fuse_Flame_2")
+            };
+            fighter.fuseFlame.sprite = fighter.fuseFlameFrames[0];
+            fighter.fuseFlame.sortingOrder = 22;
+            flame.transform.localScale = Vector3.one * .24f;
+
+            var alert = NewObject("Fuse Alert");
+            alert.transform.SetParent(fighter.root, true);
+            fighter.fuseAlert = alert.AddComponent<SpriteRenderer>();
+            fighter.fuseAlertFrames = new[]
+            {
+                FindSprite(sprites, "Fuse_Alert_0"),
+                FindSprite(sprites, "Fuse_Alert_1")
+            };
+            fighter.fuseAlert.sprite = fighter.fuseAlertFrames[0];
+            fighter.fuseAlert.sortingOrder = 23;
+            alert.transform.localScale = Vector3.one * .28f;
+            fighter.fuseAlert.enabled = false;
         }
 
         private static Sprite FindSprite(Sprite[] sprites, string name)
@@ -905,6 +956,13 @@ namespace CountDown
             fighter.laser.startColor = beamColor;
             fighter.laser.endColor = new Color(beamColor.r, beamColor.g, beamColor.b, .15f);
 
+            if (fighter.firePending)
+            {
+                if (Time.time >= fighter.pendingFireAt)
+                    Fire(fighter);
+                return;
+            }
+
             bool canCount = fighter.aiming &&
                 (fighter.hasTarget || Time.time <= fighter.aimGraceUntil) &&
                 Time.time >= fighter.stunnedUntil;
@@ -920,7 +978,11 @@ namespace CountDown
                     fighter.pulse = 1f;
                     if (fighter.count == 0)
                     {
-                        Fire(fighter);
+                        fighter.countTimer = 0f;
+                        fighter.firePending = true;
+                        fighter.pendingFireAt = Time.time + PreFirePause;
+                        fighter.pendingFireDirection =
+                            fighter.muzzle.forward.normalized;
                         break;
                     }
                 }
@@ -929,10 +991,12 @@ namespace CountDown
 
         private void Fire(Fighter fighter)
         {
+            Vector3 direction = fighter.pendingFireDirection.sqrMagnitude > .01f
+                ? fighter.pendingFireDirection : fighter.muzzle.forward.normalized;
             Play("Audio/Gunshot", 115f, .13f, .75f);
             StartCoroutine(MuzzleFlash(fighter));
             StartCoroutine(FireProjectile(fighter,
-                fighter.muzzle.position, fighter.muzzle.forward.normalized));
+                fighter.muzzle.position, direction));
             if (fighter.isPlayer)
                 fighter.ResetCount();
             else
@@ -963,8 +1027,11 @@ namespace CountDown
             float weighted = Mathf.Pow(Random.value, exponent);
             enemy.count = Mathf.RoundToInt(Mathf.Lerp(
                 enemy.countMin, enemy.countMax, weighted));
+            enemy.startingCount = enemy.count;
             enemy.countTimer = 0f;
             enemy.pulse = 1f;
+            enemy.firePending = false;
+            enemy.pendingFireDirection = Vector3.zero;
         }
 
         private IEnumerator FireProjectile(Fighter source, Vector3 position,
@@ -1249,8 +1316,78 @@ namespace CountDown
                     (fighter.spriteRenderer == null ? .88f : 0f) +
                     Mathf.Sin(Time.time * 7f) * Mathf.Min(lean.magnitude * .006f, .035f), 0f);
             UpdateSpriteAnimation(fighter, lean.magnitude);
+            UpdateFusePresentation(fighter, dt);
             if (fighter.isPlayer)
                 UpdateMeleeRangeIndicator(fighter);
+        }
+
+        private void UpdateFusePresentation(Fighter fighter, float dt)
+        {
+            if (fighter.fuseSegments == null) return;
+            bool hidden = fighter.dead;
+            float remaining = fighter.startingCount <= 0 || fighter.firePending
+                ? 0f
+                : Mathf.Clamp01((fighter.count - fighter.countTimer) /
+                    fighter.startingCount);
+            int visibleCount = hidden ? 0 :
+                Mathf.Clamp(Mathf.CeilToInt(remaining * FuseSegmentCount),
+                    0, FuseSegmentCount);
+
+            Vector3 cameraRight = gameCamera.transform.right;
+            Vector3 cameraUp = gameCamera.transform.up;
+            Vector3 defaultDirection =
+                (-cameraRight * .96f - cameraUp * .28f).normalized;
+            Vector3 anchor = fighter.gunPivot.position -
+                fighter.gunPivot.forward * .08f - cameraUp * .02f;
+            Vector3 previous = anchor;
+
+            for (int i = 0; i < FuseSegmentCount; i++)
+            {
+                SpriteRenderer segment = fighter.fuseSegments[i];
+                segment.enabled = i < visibleCount;
+                if (!segment.enabled) continue;
+
+                Vector3 current = fighter.fusePositions[i];
+                if (current == Vector3.zero)
+                    current = previous + defaultDirection * FuseLinkLength;
+                Vector3 currentDirection = current - previous;
+                currentDirection = currentDirection.sqrMagnitude > .0001f
+                    ? currentDirection.normalized : defaultDirection;
+                Vector3 relaxedDirection = Vector3.Slerp(
+                    currentDirection, defaultDirection, Mathf.Clamp01(dt * 3.2f));
+                Vector3 target = previous + relaxedDirection * FuseLinkLength;
+                current = Vector3.Lerp(current, target, Mathf.Clamp01(dt * 9f));
+                fighter.fusePositions[i] = current;
+
+                Vector3 link = current - previous;
+                float angle = Mathf.Atan2(Vector3.Dot(link, cameraUp),
+                    Vector3.Dot(link, cameraRight)) * Mathf.Rad2Deg;
+                segment.transform.position = (previous + current) * .5f;
+                segment.transform.rotation = gameCamera.transform.rotation *
+                    Quaternion.Euler(0f, 0f, angle);
+                previous = current;
+            }
+
+            fighter.fuseFlame.enabled = !hidden && visibleCount > 0;
+            if (fighter.fuseFlame.enabled)
+            {
+                int flameFrame = Mathf.FloorToInt(Time.time * 12f) % 3;
+                fighter.fuseFlame.sprite = fighter.fuseFlameFrames[flameFrame];
+                fighter.fuseFlame.transform.position = previous;
+                fighter.fuseFlame.transform.rotation = gameCamera.transform.rotation;
+            }
+
+            fighter.fuseAlert.enabled = !hidden && fighter.firePending;
+            if (fighter.fuseAlert.enabled)
+            {
+                int alertFrame = Mathf.FloorToInt(Time.time * 10f) % 2;
+                fighter.fuseAlert.sprite = fighter.fuseAlertFrames[alertFrame];
+                fighter.fuseAlert.transform.position = fighter.muzzle.position +
+                    cameraUp * .38f;
+                fighter.fuseAlert.transform.rotation = gameCamera.transform.rotation;
+                float pulse = 1f + Mathf.PingPong(Time.time * 5f, .22f);
+                fighter.fuseAlert.transform.localScale = Vector3.one * (.28f * pulse);
+            }
         }
 
         private void UpdateSpriteAnimation(Fighter fighter, float movementSpeed)
@@ -1740,6 +1877,16 @@ namespace CountDown
             public float animationStartedAt;
             public float meleeAttackUntil;
             public float meleeRecoverUntil;
+            public SpriteRenderer[] fuseSegments;
+            public Vector3[] fusePositions;
+            public SpriteRenderer fuseFlame;
+            public Sprite[] fuseFlameFrames;
+            public SpriteRenderer fuseAlert;
+            public Sprite[] fuseAlertFrames;
+            public int startingCount;
+            public bool firePending;
+            public float pendingFireAt;
+            public Vector3 pendingFireDirection;
             public Vector3 lastPosition;
             public int countMin = 3;
             public int countMax = 7;
@@ -1747,8 +1894,11 @@ namespace CountDown
             public void ResetCount()
             {
                 count = Random.Range(countMin, countMax + 1);
+                startingCount = count;
                 countTimer = 0f;
                 pulse = 1f;
+                firePending = false;
+                pendingFireDirection = Vector3.zero;
             }
         }
 

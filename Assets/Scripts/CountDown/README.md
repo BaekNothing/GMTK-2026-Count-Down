@@ -12,6 +12,7 @@ Optional replacement assets are loaded from these `Resources` paths:
 - `CountDown/Materials/MuzzleFlash`
 - `CountDown/Sprites/PlayerSheet` (4 x 5 frames, 128 px per frame)
 - `CountDown/Sprites/EnemySheet` (4 x 3 frames, 128 px per frame)
+- `CountDown/Sprites/FuseSheet` (segment, 3 flame frames, 2 alert frames)
 - `CountDown/Audio/Click`
 - `CountDown/Audio/Warning`
 - `CountDown/Audio/Gunshot`

@@ -86,3 +86,5 @@ The distance from each initial touch point controls stick strength.
 - Fixed fighters appearing buried in or hidden by the floor.
 - Added lightweight sprite-swap animation sheets for player idle, movement,
   death, melee, melee recovery, and enemy idle, movement, and death states.
+- Added trailing six-link gun fuses for both sides. The flame burns toward the
+  handle as the countdown advances, pauses on an animated warning mark, then fires.

@@ -15,6 +15,10 @@ Unity slices them automatically from the existing import metadata.
   - row 1: Idle
   - row 2: Move
   - row 3: Death
+- `FuseSheet.png`: 384 x 64, 6 columns x 1 row
+  - column 1: one horizontal fuse segment
+  - columns 2-4: Flame frames 0-2
+  - columns 5-6: Alert/exclamation frames 0-1
 
 Rows are listed top-to-bottom. Frames run left-to-right.
 
@@ -31,6 +35,8 @@ Rows are listed top-to-bottom. Frames run left-to-right.
 - Idle, Move, Melee, and MeleeRecover loop through all 4 frames.
 - Death plays frames 0 through 3 once and holds frame 3.
 - Use nearest-neighbor/pixel-preserving resizing if you draft at another resolution.
+- Fuse cells are exactly 64 x 64. Keep the segment horizontal and centered;
+  runtime rotates and chains six copies of it.
 
 The game loads the named sub-sprites from these sheets. No Animator Controller,
 animation clips, prefab wiring, or filename changes are required after repainting.

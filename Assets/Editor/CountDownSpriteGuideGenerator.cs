@@ -22,11 +22,70 @@ namespace CountDown.Editor
             {
                 "Idle", "Move", "Death"
             }, new Color32(255, 62, 48, 255));
+            GenerateFuseSheet();
             AssetDatabase.Refresh();
             SliceSheet(OutputDirectory + "/PlayerSheet.png", 5, "Player");
             SliceSheet(OutputDirectory + "/EnemySheet.png", 3, "Enemy");
+            SliceFuseSheet(OutputDirectory + "/FuseSheet.png");
             AssetDatabase.SaveAssets();
             Debug.Log("COUNT DOWN sprite guides generated successfully.");
+        }
+
+        private static void GenerateFuseSheet()
+        {
+            const int cell = 64;
+            const int columns = 6;
+            var texture = new Texture2D(cell * columns, cell, TextureFormat.RGBA32, false);
+            var pixels = new Color32[texture.width * texture.height];
+            for (int i = 0; i < pixels.Length; i++)
+                pixels[i] = new Color32(0, 0, 0, 0);
+
+            Color32[] backgrounds =
+            {
+                new Color32(122, 82, 48, 34),
+                new Color32(255, 70, 35, 34),
+                new Color32(255, 155, 20, 34),
+                new Color32(255, 225, 55, 34),
+                new Color32(255, 70, 55, 34),
+                new Color32(255, 190, 30, 34)
+            };
+            for (int column = 0; column < columns; column++)
+            {
+                int ox = column * cell;
+                FillRect(pixels, texture.width, ox, 0, cell, cell, backgrounds[column]);
+                DrawLine(pixels, texture.width, ox + 32, 3, ox + 32, 60,
+                    new Color32(255, 255, 255, 90));
+                DrawLine(pixels, texture.width, ox + 3, 32, ox + 60, 32,
+                    new Color32(255, 255, 255, 90));
+                for (int i = 0; i <= column; i++)
+                    FillRect(pixels, texture.width, ox + 4 + i * 4, 57, 2, 3,
+                        new Color32(255, 255, 255, 235));
+            }
+
+            // Segment, then three flame poses, then two alert poses.
+            DrawLine(pixels, texture.width, 10, 32, 54, 32,
+                new Color32(90, 58, 32, 255), 7);
+            for (int frame = 0; frame < 3; frame++)
+            {
+                int ox = (frame + 1) * cell;
+                FillCircle(pixels, texture.width, ox + 32, 28 + frame % 2 * 3,
+                    13, new Color32(255, 86, 28, 245));
+                FillCircle(pixels, texture.width, ox + 32 + frame - 1, 32,
+                    7, new Color32(255, 225, 55, 255));
+            }
+            for (int frame = 0; frame < 2; frame++)
+            {
+                int ox = (frame + 4) * cell;
+                FillRect(pixels, texture.width, ox + 28, 18, 8, 28,
+                    new Color32(255, 235, 70, frame == 0 ? (byte)210 : (byte)255));
+                FillCircle(pixels, texture.width, ox + 32, 11, 5,
+                    new Color32(255, 235, 70, 255));
+            }
+
+            texture.SetPixels32(pixels);
+            texture.Apply(false, false);
+            File.WriteAllBytes(OutputDirectory + "/FuseSheet.png", texture.EncodeToPNG());
+            Object.DestroyImmediate(texture);
         }
 
         private static void GenerateSheet(string fileName, string[] states, Color32 accent)
@@ -132,6 +191,42 @@ namespace CountDown.Editor
                         CellSize, CellSize),
                     alignment = (int)SpriteAlignment.Custom,
                     pivot = new Vector2(.5f, 12f / CellSize),
+                    border = Vector4.zero
+                };
+            }
+            importer.spritesheet = rects;
+            importer.SaveAndReimport();
+        }
+
+        private static void SliceFuseSheet(string path)
+        {
+            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+            var importer = (TextureImporter)AssetImporter.GetAtPath(path);
+            importer.textureType = TextureImporterType.Sprite;
+            importer.spriteImportMode = SpriteImportMode.Multiple;
+            importer.spritePixelsPerUnit = 64f;
+            importer.filterMode = FilterMode.Point;
+            importer.textureCompression = TextureImporterCompression.Compressed;
+            importer.crunchedCompression = true;
+            importer.compressionQuality = 55;
+            importer.mipmapEnabled = false;
+            importer.alphaIsTransparency = true;
+            importer.wrapMode = TextureWrapMode.Clamp;
+
+            string[] names =
+            {
+                "Fuse_Segment_0", "Fuse_Flame_0", "Fuse_Flame_1",
+                "Fuse_Flame_2", "Fuse_Alert_0", "Fuse_Alert_1"
+            };
+            var rects = new SpriteMetaData[names.Length];
+            for (int i = 0; i < names.Length; i++)
+            {
+                rects[i] = new SpriteMetaData
+                {
+                    name = names[i],
+                    rect = new Rect(i * 64, 0, 64, 64),
+                    alignment = (int)SpriteAlignment.Center,
+                    pivot = new Vector2(.5f, .5f),
                     border = Vector4.zero
                 };
             }
