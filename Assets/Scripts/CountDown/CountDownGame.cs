@@ -29,6 +29,9 @@ namespace CountDown
         private const float EnemyLineAvoidanceRadius = 1.45f;
         private const float AimAcquireBonus = .2f;
         private const float AimGraceDuration = .5f;
+        private const float DefaultCameraFieldOfView = 47f;
+        private const float AimingCameraFieldOfView = 42f;
+        private const float AimFeedbackSpeed = 5f;
         private const int InitialEnemyCount = 2;
         private const float EnemyBaseMoveSpeed = 2.8f;
         private const float EnemyMoveSpeedPerStage = .35f;
@@ -57,7 +60,9 @@ namespace CountDown
         private float meleeReadyAt;
         private float emergencyDodgeUntil;
         private float shake;
+        private float aimFeedback;
         private Texture2D white;
+        private Texture2D aimVignette;
         private GUIStyle titleStyle;
         private GUIStyle labelStyle;
         private GUIStyle countStyle;
@@ -90,6 +95,7 @@ namespace CountDown
         {
             Application.runInBackground = true;
             white = Texture2D.whiteTexture;
+            aimVignette = CreateAimVignetteTexture();
             mouseAimPosition = new Vector2(Screen.width * .5f, Screen.height * .5f);
             BuildWorld();
         }
@@ -106,7 +112,7 @@ namespace CountDown
 
             gameCamera = NewObject("Game Camera").AddComponent<Camera>();
             gameCamera.tag = "MainCamera";
-            gameCamera.fieldOfView = 47f;
+            gameCamera.fieldOfView = DefaultCameraFieldOfView;
             gameCamera.nearClipPlane = .1f;
             gameCamera.farClipPlane = 80f;
             gameCamera.clearFlags = CameraClearFlags.SolidColor;
@@ -337,6 +343,7 @@ namespace CountDown
 
             if (finished)
             {
+                UpdateAimFeedback(Mathf.Min(Time.deltaTime, .05f));
                 if (Input.GetKeyDown(KeyCode.R))
                     RestartGame();
                 if (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began)
@@ -364,6 +371,7 @@ namespace CountDown
             UpdatePresentation(player, dt);
             for (int i = 0; i < enemies.Count; i++)
                 UpdatePresentation(enemies[i], dt);
+            UpdateAimFeedback(dt);
             UpdateCamera(false);
             shake = Mathf.MoveTowards(shake, 0f, dt * 2.8f);
         }
@@ -486,6 +494,7 @@ namespace CountDown
             stageTransitioning = false;
             stage = 1;
             shake = 0f;
+            aimFeedback = 0f;
             emergencyDodgeUntil = 0f;
             moveTouchId = aimTouchId = -1;
             touchMove = Vector2.zero;
@@ -1037,6 +1046,11 @@ namespace CountDown
         private void UpdateCamera(bool immediate)
         {
             if (gameCamera == null || player == null) return;
+            float targetFieldOfView = Mathf.Lerp(DefaultCameraFieldOfView,
+                AimingCameraFieldOfView, aimFeedback);
+            gameCamera.fieldOfView = immediate ? targetFieldOfView :
+                Mathf.Lerp(gameCamera.fieldOfView, targetFieldOfView,
+                    1f - Mathf.Exp(-AimFeedbackSpeed * Time.deltaTime));
             Vector3 follow = new Vector3(player.root.position.x, 7.8f,
                 player.root.position.z - 8.8f);
             if (shake > 0f)
@@ -1048,6 +1062,37 @@ namespace CountDown
                 gameCamera.transform.position, Vector3.up);
             gameCamera.transform.rotation = immediate ? rotation :
                 Quaternion.Slerp(gameCamera.transform.rotation, rotation, Time.deltaTime * 5f);
+        }
+
+        private void UpdateAimFeedback(float dt)
+        {
+            float target = player != null && player.aiming && !finished ? 1f : 0f;
+            aimFeedback = Mathf.MoveTowards(aimFeedback, target,
+                AimFeedbackSpeed * dt);
+        }
+
+        private static Texture2D CreateAimVignetteTexture()
+        {
+            const int size = 128;
+            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                name = "Generated Aim Vignette",
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp
+            };
+            var pixels = new Color32[size * size];
+            for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                float nx = (x + .5f) / size * 2f - 1f;
+                float ny = (y + .5f) / size * 2f - 1f;
+                float edge = Mathf.Clamp01((Mathf.Sqrt(nx * nx + ny * ny) - .45f) / .55f);
+                float alpha = edge * edge * .78f;
+                pixels[y * size + x] = new Color(0f, .015f, .025f, alpha);
+            }
+            texture.SetPixels32(pixels);
+            texture.Apply(false, true);
+            return texture;
         }
 
         private void Play(string resourcePath, float fallbackFrequency, float duration, float volume)
@@ -1118,6 +1163,7 @@ namespace CountDown
             if (player == null) return;
             GUI.depth = -100;
             InitStyles();
+            DrawAimVignette();
             DrawTopStatus();
             DrawPlayerStatus();
             DrawWorldCount(player);
@@ -1149,6 +1195,15 @@ namespace CountDown
             }
 
             DrawBuildVersion();
+        }
+
+        private void DrawAimVignette()
+        {
+            if (aimFeedback <= .001f || aimVignette == null) return;
+            GUI.color = new Color(1f, 1f, 1f, aimFeedback);
+            GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height),
+                aimVignette, ScaleMode.StretchToFill, true);
+            GUI.color = Color.white;
         }
 
         private void DrawBuildVersion()

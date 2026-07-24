@@ -33,6 +33,8 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- Aiming now gently zooms the camera in and darkens the screen edges for
+  immediate visual feedback.
 - Added escalating stages that add one enemy after every clear.
 - Split countdown ranges: player 3-7, while enemies scale from 10-15 toward 3-7.
 - Added automatic click, touch, and gamepad input-mode switching.

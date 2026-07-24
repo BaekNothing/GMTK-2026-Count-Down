@@ -103,6 +103,13 @@ public static class CountDownValidation
             Require(HasConstant("AimAcquireBonus", .2f) &&
                 HasConstant("AimGraceDuration", .5f),
                 "Acquiring aim must grant 0.2 seconds and retain progress for 0.5 seconds.");
+            Require(HasConstant("DefaultCameraFieldOfView", 47f) &&
+                HasConstant("AimingCameraFieldOfView", 42f) &&
+                HasConstant("AimFeedbackSpeed", 5f),
+                "Aiming must smoothly zoom the camera from 47 to 42 degrees.");
+            Require(typeof(CountDownGame).GetMethod("DrawAimVignette",
+                BindingFlags.Instance | BindingFlags.NonPublic) != null,
+                "Aiming must display a dark edge vignette.");
             Require(HasConstant("InitialEnemyCount", 2),
                 "Stage one must begin with two enemies.");
             Require(HasConstant("EnemyBaseMoveSpeed", 2.8f) &&
