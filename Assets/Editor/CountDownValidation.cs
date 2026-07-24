@@ -50,6 +50,13 @@ public static class CountDownValidation
                 "Player turn speed must be 50% faster than baseline.");
             Require(HasConstant("EnemyTurnSpeed", 63f),
                 "Enemy turn speed must be 30% slower than baseline.");
+            Require(typeof(CountDownGame).GetMethod("PointerArenaPoint",
+                BindingFlags.Instance | BindingFlags.NonPublic) != null,
+                "Mouse aiming must follow the current pointer position.");
+            Renderer floorRenderer = Find("Replaceable Arena Floor").GetComponent<Renderer>();
+            Require(floorRenderer.material.renderQueue == 1000 &&
+                floorRenderer.sortingOrder == -1000,
+                "Arena floor must render behind gameplay objects.");
 
             Debug.Log("COUNT DOWN runtime validation passed.");
             EditorApplication.Exit(0);

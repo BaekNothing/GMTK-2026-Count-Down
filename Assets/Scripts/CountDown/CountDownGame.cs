@@ -29,6 +29,7 @@ namespace CountDown
         private GUIStyle countStyle;
         private GUIStyle helpStyle;
         private GUIStyle aimStyle;
+        private GUIStyle versionStyle;
         private int moveTouchId = -1;
         private int aimTouchId = -1;
         private Vector2 moveTouchOrigin;
@@ -111,8 +112,10 @@ namespace CountDown
             floor.transform.SetParent(transform);
             floor.transform.position = new Vector3(0f, -.18f, 0f);
             floor.transform.localScale = new Vector3(ArenaWidth, .3f, ArenaDepth);
-            floor.GetComponent<Renderer>().material = MaterialFor(
-                "Materials/Floor", new Color(.13f, .145f, .16f));
+            Renderer floorRenderer = floor.GetComponent<Renderer>();
+            floorRenderer.material = MaterialFor(
+                "Materials/Floor", new Color(.13f, .145f, .16f), 1000);
+            floorRenderer.sortingOrder = -1000;
 
             CreateBoundary(new Vector3(0f, .15f, ArenaDepth * .5f + .2f),
                 new Vector3(ArenaWidth + .8f, .3f, .18f));
@@ -147,7 +150,9 @@ namespace CountDown
             go.transform.SetParent(transform);
             go.transform.position = position;
             go.transform.localScale = scale;
-            go.GetComponent<Renderer>().material = MaterialFor(null, new Color(.24f, .255f, .27f));
+            Renderer renderer = go.GetComponent<Renderer>();
+            renderer.material = MaterialFor(null, new Color(.24f, .255f, .27f), 1001);
+            renderer.sortingOrder = -999;
             Destroy(go.GetComponent<Collider>());
         }
 
@@ -239,16 +244,23 @@ namespace CountDown
             return go;
         }
 
-        private Material MaterialFor(string resourcePath, Color fallback)
+        private Material MaterialFor(string resourcePath, Color fallback, int renderQueue = 2000)
         {
             var loaded = string.IsNullOrEmpty(resourcePath)
                 ? null : Resources.Load<Material>("CountDown/" + resourcePath);
-            if (loaded != null) return loaded;
+            if (loaded != null)
+            {
+                var instance = new Material(loaded);
+                instance.renderQueue = renderQueue;
+                return instance;
+            }
             var shader = Shader.Find("Universal Render Pipeline/Lit");
+            if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
             if (shader == null) shader = Shader.Find("Standard");
             if (shader == null) shader = Shader.Find("Sprites/Default");
             var material = new Material(shader);
             material.color = fallback;
+            material.renderQueue = renderQueue;
             return material;
         }
 
@@ -303,13 +315,21 @@ namespace CountDown
             if (Input.GetMouseButton(1))
                 mouseAimPosition = Input.mousePosition;
 
-            Vector2 pointerAim = touchAiming
-                ? touchAim
-                : (mouseAimPosition - mouseAimOrigin) / TouchStickRadius;
-            if (player.aiming && pointerAim.sqrMagnitude > .01f)
-                aimDirection = pointerAim.normalized;
-
-            Vector3 direction = new Vector3(aimDirection.x, 0f, aimDirection.y);
+            Vector3 direction;
+            if (touchAiming)
+            {
+                if (touchAim.sqrMagnitude > .01f)
+                    aimDirection = touchAim.normalized;
+                direction = new Vector3(aimDirection.x, 0f, aimDirection.y);
+            }
+            else
+            {
+                Vector3 mouseTarget = PointerArenaPoint(Input.mousePosition);
+                direction = mouseTarget - player.gunPivot.position;
+                direction.y = 0f;
+            }
+            if (direction.sqrMagnitude < .01f)
+                direction = player.gunPivot.forward;
             Quaternion desired = Quaternion.LookRotation(direction, Vector3.up);
             player.gunPivot.rotation = Quaternion.RotateTowards(
                 player.gunPivot.rotation, desired, PlayerTurnSpeed * dt);
@@ -594,6 +614,15 @@ namespace CountDown
             return value;
         }
 
+        private Vector3 PointerArenaPoint(Vector3 screenPosition)
+        {
+            Ray ray = gameCamera.ScreenPointToRay(screenPosition);
+            var plane = new Plane(Vector3.up, Vector3.up * .9f);
+            return plane.Raycast(ray, out float enter)
+                ? ray.GetPoint(enter)
+                : player.gunPivot.position + player.gunPivot.forward * 10f;
+        }
+
         private void UpdateCamera(bool immediate)
         {
             if (gameCamera == null || player == null) return;
@@ -670,6 +699,11 @@ namespace CountDown
                 fontSize = Mathf.Max(13, Mathf.RoundToInt(Screen.height * .021f)),
                 normal = { textColor = Color.white }
             };
+            versionStyle = new GUIStyle(helpStyle)
+            {
+                alignment = TextAnchor.UpperRight,
+                normal = { textColor = new Color(.75f, .78f, .82f, .9f) }
+            };
         }
 
         private void OnGUI()
@@ -683,6 +717,8 @@ namespace CountDown
             DrawCrosshair();
             DrawAimState();
             DrawTouchControls();
+            GUI.Label(new Rect(Screen.width - 220f, 10f, 200f, 24f),
+                "BUILD " + Application.version, versionStyle);
             GUI.Label(new Rect(0f, Screen.height - 30f, Screen.width, 24f),
                 "WASD MOVE   •   HOLD RMB AIM   •   SPACE BASH   •   ESC QUIT", helpStyle);
 

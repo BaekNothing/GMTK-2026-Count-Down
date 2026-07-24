@@ -12,7 +12,9 @@ sequence unless the user explicitly requests local-only or no-publish work:
 4. Confirm both logs report success and `Builds/WebGL/index.html` exists.
 5. Stage only the intended files, commit them, and push the current branch.
 6. Run `Tools/Publish-Itch.ps1` to publish the exact successful WebGL output.
-7. Report the commit, pushed branch, build result, and itch.io channel/version.
+7. If controls or player-facing behavior changed, update `ITCH_PAGE.md` and
+   mirror its current guide and latest patch notes to the itch.io game page.
+8. Report the commit, pushed branch, build result, and itch.io channel/version.
 
 Never place Unity credentials or the itch.io API key in tracked files. Local
 Unity Personal activation is authoritative for builds. itch.io credentials

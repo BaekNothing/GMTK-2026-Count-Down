@@ -1,4 +1,5 @@
 using System.IO;
+using System;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
 using UnityEditor.SceneManagement;
@@ -35,6 +36,7 @@ public static class WebGLProjectSetup
         }
 
         PlayerSettings.runInBackground = true;
+        PlayerSettings.bundleVersion = DateTime.Now.ToString("yyyyMMdd") + ".000";
         AssetDatabase.SaveAssets();
         Debug.Log("WebGL project setup completed.");
     }
