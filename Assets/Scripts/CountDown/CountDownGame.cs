@@ -136,7 +136,9 @@ namespace CountDown
             go.transform.SetParent(transform);
             go.transform.position = position;
             go.transform.localScale = scale;
-            go.GetComponent<Renderer>().material = MaterialFor(null, new Color(.65f, .58f, .38f));
+            Renderer renderer = go.GetComponent<Renderer>();
+            renderer.material = MaterialFor(null, new Color(.65f, .58f, .38f), 1002);
+            renderer.sortingOrder = -998;
             Destroy(go.GetComponent<Collider>());
         }
 
@@ -701,6 +703,7 @@ namespace CountDown
         private void OnGUI()
         {
             if (player == null || enemy == null) return;
+            GUI.depth = -100;
             InitStyles();
             DrawTopStatus();
             DrawPlayerStatus();
@@ -709,8 +712,6 @@ namespace CountDown
             DrawCrosshair();
             DrawAimState();
             DrawTouchControls();
-            GUI.Label(new Rect(Screen.width - 220f, 10f, 200f, 24f),
-                "BUILD " + Application.version, versionStyle);
             GUI.Label(new Rect(0f, Screen.height - 30f, Screen.width, 24f),
                 "WASD MOVE   •   HOLD RMB AIM   •   SPACE BASH   •   ESC QUIT", helpStyle);
 
@@ -725,6 +726,20 @@ namespace CountDown
                 GUI.Label(new Rect(0f, Screen.height * .5f, Screen.width, 40f),
                     Input.touchSupported ? "TAP TO RESTART" : "R TO RESTART", labelStyle);
             }
+
+            DrawBuildVersion();
+        }
+
+        private void DrawBuildVersion()
+        {
+            Rect safe = Screen.safeArea;
+            float width = Mathf.Min(210f, Mathf.Max(130f, safe.width * .32f));
+            float x = Mathf.Max(8f, safe.xMax - width - 12f);
+            float y = Mathf.Max(8f, Screen.height - safe.yMax + 12f);
+            Rect panel = new Rect(x, y, width, 30f);
+            DrawPanel(panel, new Color(.02f, .025f, .03f, .9f));
+            GUI.Label(new Rect(panel.x + 8f, panel.y + 5f,
+                panel.width - 16f, 20f), "BUILD " + Application.version, versionStyle);
         }
 
         private void DrawAimState()

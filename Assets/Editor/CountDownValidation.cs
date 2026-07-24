@@ -58,6 +58,13 @@ public static class CountDownValidation
             Require(floorRenderer.material.renderQueue == 1000 &&
                 floorRenderer.sortingOrder == -1000,
                 "Arena floor must render behind gameplay objects.");
+            Renderer railRenderer = Find("Arena Rail").GetComponent<Renderer>();
+            Require(railRenderer.material.renderQueue == 1002 &&
+                railRenderer.sortingOrder == -998,
+                "Arena rails must render behind gameplay objects.");
+            Require(typeof(CountDownGame).GetMethod("DrawBuildVersion",
+                BindingFlags.Instance | BindingFlags.NonPublic) != null,
+                "A safe-area anchored build version overlay is required.");
 
             Debug.Log("COUNT DOWN runtime validation passed.");
             EditorApplication.Exit(0);
