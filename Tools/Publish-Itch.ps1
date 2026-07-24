@@ -1,10 +1,11 @@
 param(
-    [string]$ItchTarget = $env:ITCH_TARGET,
+    [string]$ItchTarget,
     [string]$UnityEditor = 'D:\UnityEditors\6000.3.8f1\Editor\Unity.exe'
 )
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$localEnvironmentFile = Join-Path $projectRoot '.env.itch.local'
 $validationLog = Join-Path $projectRoot 'countdown-validation-final.log'
 $buildLog = Join-Path $projectRoot 'countdown-build.log'
 $webglOutput = Join-Path $projectRoot 'Builds\WebGL'
@@ -13,12 +14,58 @@ $butlerDirectory = Join-Path $projectRoot '.tools\butler'
 $butlerExecutable = Join-Path $butlerDirectory 'butler.exe'
 $butlerCredentials = Join-Path $env:USERPROFILE '.config\itch\butler_creds'
 
+function Import-LocalEnvironmentFile {
+    param([string]$Path)
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        return
+    }
+
+    foreach ($rawLine in Get-Content -LiteralPath $Path -Encoding UTF8) {
+        $line = $rawLine.Trim()
+        if ([string]::IsNullOrWhiteSpace($line) -or $line.StartsWith('#')) {
+            continue
+        }
+
+        $separator = $line.IndexOf('=')
+        if ($separator -lt 1) {
+            throw "Invalid line in ${Path}: $rawLine"
+        }
+
+        $name = $line.Substring(0, $separator).Trim()
+        $value = $line.Substring($separator + 1).Trim()
+        if ($name -notmatch '^[A-Za-z_][A-Za-z0-9_]*$') {
+            throw "Invalid variable name '$name' in $Path"
+        }
+
+        if ($value.Length -ge 2) {
+            $first = $value[0]
+            $last = $value[$value.Length - 1]
+            if (($first -eq '"' -and $last -eq '"') -or
+                ($first -eq "'" -and $last -eq "'")) {
+                $value = $value.Substring(1, $value.Length - 2)
+            }
+        }
+
+        if ([string]::IsNullOrWhiteSpace(
+            [Environment]::GetEnvironmentVariable($name, 'Process'))) {
+            [Environment]::SetEnvironmentVariable($name, $value, 'Process')
+        }
+    }
+}
+
+Import-LocalEnvironmentFile -Path $localEnvironmentFile
+
+if ([string]::IsNullOrWhiteSpace($ItchTarget)) {
+    $ItchTarget = $env:ITCH_TARGET
+}
+
 if (-not (Test-Path -LiteralPath $UnityEditor -PathType Leaf)) {
     throw "Unity Editor was not found: $UnityEditor"
 }
 
 if ([string]::IsNullOrWhiteSpace($ItchTarget)) {
-    throw 'ITCH_TARGET is missing. Expected format: user/game:webgl'
+    throw 'ITCH_TARGET is missing. Add it to .env.itch.local (see .env.itch.example).'
 }
 
 if ($ItchTarget -notmatch '^[^/:]+/[^/:]+:[^/:]+$') {
@@ -27,7 +74,7 @@ if ($ItchTarget -notmatch '^[^/:]+/[^/:]+:[^/:]+$') {
 
 if ([string]::IsNullOrWhiteSpace($env:BUTLER_API_KEY) -and
     -not (Test-Path -LiteralPath $butlerCredentials -PathType Leaf)) {
-    throw 'itch.io authentication is missing. Set BUTLER_API_KEY or run butler login.'
+    throw 'itch.io authentication is missing. Add BUTLER_API_KEY to .env.itch.local or run butler login.'
 }
 
 Write-Host 'Validating COUNT DOWN runtime assembly...'

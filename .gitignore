@@ -114,3 +114,4 @@ Desktop.ini
 .agents/
 .tools/
 .itch-target
+.env.itch.local

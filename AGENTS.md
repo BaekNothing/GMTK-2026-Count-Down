@@ -16,9 +16,10 @@ sequence unless the user explicitly requests local-only or no-publish work:
 
 Never place Unity credentials or the itch.io API key in tracked files. Local
 Unity Personal activation is authoritative for builds. itch.io credentials
-must come from `BUTLER_API_KEY` or butler's local credential store, and the
-destination must come from `ITCH_TARGET` or an explicit script argument.
+and destination may be read from the Git-ignored `.env.itch.local`, process
+environment variables, butler's local credential store, or an explicit script
+argument. `.env.itch.example` is the only dotenv file that may be committed.
 
 If itch.io credentials or the target are missing, complete validation, build,
-commit, and push, then report publishing as the only blocker with the exact
-missing variable. Do not claim that a release was published.
+commit, and push, then report publishing as the only blocker and point to
+`.env.itch.example`. Do not claim that a release was published.
