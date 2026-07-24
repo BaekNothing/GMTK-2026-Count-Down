@@ -34,6 +34,8 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- Locked shots now recalculate a direct path to the target hitbox center at the
+  instant of firing, and player projectiles travel 10% faster.
 - Replaced fighter panel-like collision with invisible 3D box hitboxes so
   side-angle shots connect reliably. Enemy hitboxes are 10% larger than their
   visible bodies, while the player's is 10% smaller.

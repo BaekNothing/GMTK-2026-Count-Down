@@ -96,13 +96,17 @@ public static class CountDownValidation
                 HasConstant("EmergencyDodgeDuration", .5f),
                 "Releasing aim must grant a 2x emergency dodge for 0.5 seconds.");
             Require(HasConstant("ProjectileSpeed", 11.7f) &&
+                HasConstant("PlayerProjectileSpeedMultiplier", 1.1f) &&
                 HasConstant("ProjectileRadius", .16f) &&
                 HasConstant("PlayerProjectileDamage", 3) &&
                 HasConstant("EnemyProjectileDamage", 1),
-                "Player projectiles must deal 3 damage while enemy projectiles deal 1.");
+                "Player projectiles must be 10% faster and deal 3 damage while enemy projectiles deal 1.");
             Require(typeof(CountDownGame).GetMethod("FireProjectile",
                 BindingFlags.Instance | BindingFlags.NonPublic) != null,
                 "Hitscan damage must be replaced by projectile travel.");
+            Require(typeof(CountDownGame).GetMethod("GetFighterAimPoint",
+                BindingFlags.Static | BindingFlags.NonPublic) != null,
+                "Shots locked to a fighter must target the hitbox center.");
             Require(typeof(CountDownGame).GetField("PlayerTurnSpeed",
                 BindingFlags.Static | BindingFlags.NonPublic) == null,
                 "Player aiming must be instantaneous with no turn-speed limit.");

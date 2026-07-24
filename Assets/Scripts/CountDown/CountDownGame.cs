@@ -25,6 +25,7 @@ namespace CountDown
         private const float EmergencyDodgeMultiplier = 2f;
         private const float EmergencyDodgeDuration = .5f;
         private const float ProjectileSpeed = 11.7f;
+        private const float PlayerProjectileSpeedMultiplier = 1.1f;
         private const float ProjectileRadius = .16f;
         private const float ProjectileLifetime = 4f;
         private const int PlayerProjectileDamage = 3;
@@ -992,6 +993,9 @@ namespace CountDown
                         fighter.countTimer = 0f;
                         fighter.firePending = true;
                         fighter.pendingFireAt = Time.time + PreFirePause;
+                        fighter.pendingFireTarget =
+                            fighter.opponent != null && !fighter.opponent.dead
+                                ? fighter.opponent : null;
                         fighter.pendingFireDirection =
                             fighter.muzzle.forward.normalized;
                         break;
@@ -1002,8 +1006,19 @@ namespace CountDown
 
         private void Fire(Fighter fighter)
         {
-            Vector3 direction = fighter.pendingFireDirection.sqrMagnitude > .01f
-                ? fighter.pendingFireDirection : fighter.muzzle.forward.normalized;
+            Vector3 direction;
+            if (fighter.pendingFireTarget != null &&
+                !fighter.pendingFireTarget.dead)
+            {
+                direction = (GetFighterAimPoint(fighter.pendingFireTarget) -
+                    fighter.muzzle.position).normalized;
+            }
+            else
+            {
+                direction = fighter.pendingFireDirection.sqrMagnitude > .01f
+                    ? fighter.pendingFireDirection
+                    : fighter.muzzle.forward.normalized;
+            }
             Play("Audio/Gunshot", 115f, .13f, .75f);
             StartCoroutine(MuzzleFlash(fighter));
             StartCoroutine(FireProjectile(fighter,
@@ -1042,7 +1057,16 @@ namespace CountDown
             enemy.countTimer = 0f;
             enemy.pulse = 1f;
             enemy.firePending = false;
+            enemy.pendingFireTarget = null;
             enemy.pendingFireDirection = Vector3.zero;
+        }
+
+        private static Vector3 GetFighterAimPoint(Fighter fighter)
+        {
+            Collider hitbox = fighter.root.GetComponent<Collider>();
+            return hitbox != null
+                ? hitbox.bounds.center
+                : fighter.root.position + Vector3.up * (BodyHeight * .5f);
         }
 
         private IEnumerator FireProjectile(Fighter source, Vector3 position,
@@ -1080,7 +1104,10 @@ namespace CountDown
             float expiresAt = Time.time + ProjectileLifetime;
             while (!finished && !stageTransitioning && Time.time < expiresAt)
             {
-                float distance = ProjectileSpeed * Mathf.Min(Time.deltaTime, .05f);
+                float speed = source.isPlayer
+                    ? ProjectileSpeed * PlayerProjectileSpeedMultiplier
+                    : ProjectileSpeed;
+                float distance = speed * Mathf.Min(Time.deltaTime, .05f);
                 RaycastHit[] hits = Physics.SphereCastAll(position,
                     ProjectileRadius, direction, distance,
                     Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
@@ -1905,6 +1932,7 @@ namespace CountDown
             public int startingCount;
             public bool firePending;
             public float pendingFireAt;
+            public Fighter pendingFireTarget;
             public Vector3 pendingFireDirection;
             public Vector3 lastPosition;
             public int countMin = 3;
@@ -1917,6 +1945,7 @@ namespace CountDown
                 countTimer = 0f;
                 pulse = 1f;
                 firePending = false;
+                pendingFireTarget = null;
                 pendingFireDirection = Vector3.zero;
             }
         }
