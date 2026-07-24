@@ -31,8 +31,11 @@ public static class CountDownValidation
             Require(Find("TARGET") != null, "Enemy was not generated.");
             Require(Find("Replaceable Arena Floor") != null, "Arena was not generated.");
             Require(Find("Game Camera") != null, "Game camera was not generated.");
+            Require(Find("TARGET 2") != null,
+                "The first stage must begin with two enemies.");
             Require(UnityEngine.Object.FindObjectsByType<LineRenderer>(
-                FindObjectsSortMode.None).Length == 2, "Both aiming lasers are required.");
+                FindObjectsSortMode.None).Length == 3,
+                "The player and both initial enemies require aiming lasers.");
             Require(Find("PLAYER").GetComponent<CapsuleCollider>() != null,
                 "Player body hitbox is required.");
             Require(Find("TARGET").GetComponent<CapsuleCollider>() != null,
@@ -85,10 +88,10 @@ public static class CountDownValidation
             Require(typeof(CountDownGame).GetMethod("PointerArenaPoint",
                 BindingFlags.Instance | BindingFlags.NonPublic) != null,
                 "Mouse aiming must follow the current pointer position.");
-            Require(HasConstant("AimAssistDegrees", 10f) &&
+            Require(HasConstant("AimAssistDegrees", 20f) &&
                 typeof(CountDownGame).GetMethod("ApplyAimAssist",
                     BindingFlags.Instance | BindingFlags.NonPublic) != null,
-                "Player aim must snap to the nearest overlapping target within 10 degrees.");
+                "Player aim must snap to the nearest overlapping target within 20 degrees.");
             Require(HasConstant("EnemyLineAvoidanceRadius", 1.45f) &&
                 typeof(CountDownGame).GetMethod("MoveEnemy",
                     BindingFlags.Instance | BindingFlags.NonPublic) != null,
@@ -97,6 +100,25 @@ public static class CountDownValidation
                 typeof(CountDownGame).GetMethod("ResolveAllFighterOverlaps",
                     BindingFlags.Instance | BindingFlags.NonPublic) != null,
                 "Living fighters must maintain a non-overlapping separation.");
+            Require(HasConstant("AimAcquireBonus", .2f) &&
+                HasConstant("AimGraceDuration", .5f),
+                "Acquiring aim must grant 0.2 seconds and retain progress for 0.5 seconds.");
+            Require(HasConstant("InitialEnemyCount", 2),
+                "Stage one must begin with two enemies.");
+            Require(HasConstant("EnemyBaseMoveSpeed", 2.8f) &&
+                HasConstant("EnemyMoveSpeedPerStage", .35f) &&
+                HasConstant("EnemyStageOneMinCount", 10) &&
+                HasConstant("EnemyStageOneMaxCount", 15) &&
+                HasConstant("EnemyMinCountFloor", 3) &&
+                HasConstant("EnemyMaxCountFloor", 7),
+                "Enemy movement speed must rise and starting counts must fall with stage.");
+            Require(HasConstant("MeleeRange", 1.8f) &&
+                HasConstant("MeleeCooldown", 15f) &&
+                typeof(CountDownGame).GetMethod("HasEnemyInMeleeRange",
+                    BindingFlags.Instance | BindingFlags.NonPublic) != null &&
+                typeof(CountDownGame).GetMethod("TryAutoMelee",
+                    BindingFlags.Instance | BindingFlags.NonPublic) != null,
+                "Melee must auto-trigger in range, hit an area, and use a 15-second cooldown.");
             Transform playerRoot = Find("PLAYER").transform;
             Transform targetRoot = Find("TARGET").transform;
             Transform playerGun = playerRoot.Find("Gun Pivot");
@@ -104,13 +126,13 @@ public static class CountDownValidation
                 Vector3.up * .85f - playerGun.position;
             targetDirection.y = 0f;
             Vector3 rawAssistedDirection =
-                Quaternion.Euler(0f, 8f, 0f) * targetDirection.normalized;
+                Quaternion.Euler(0f, -18f, 0f) * targetDirection.normalized;
             MethodInfo aimAssist = typeof(CountDownGame).GetMethod(
                 "ApplyAimAssist", BindingFlags.Instance | BindingFlags.NonPublic);
             Vector3 assistedDirection = (Vector3)aimAssist.Invoke(
                 game, new object[] { playerGun.position, rawAssistedDirection });
             Require(Vector3.Angle(assistedDirection, targetDirection) < .1f,
-                "An enemy inside the 10-degree cone must receive exact center aim.");
+                "An enemy inside the 20-degree cone must receive exact center aim.");
             targetRoot.position = playerRoot.position;
             MethodInfo resolveOverlaps = typeof(CountDownGame).GetMethod(
                 "ResolveAllFighterOverlaps",
@@ -174,6 +196,13 @@ public static class CountDownValidation
             name, BindingFlags.Static | BindingFlags.NonPublic);
         return field != null && Mathf.Approximately(
             (float)field.GetRawConstantValue(), expected);
+    }
+
+    private static bool HasConstant(string name, int expected)
+    {
+        FieldInfo field = typeof(CountDownGame).GetField(
+            name, BindingFlags.Static | BindingFlags.NonPublic);
+        return field != null && (int)field.GetRawConstantValue() == expected;
     }
 
     private static bool HasInputAxis(string name)

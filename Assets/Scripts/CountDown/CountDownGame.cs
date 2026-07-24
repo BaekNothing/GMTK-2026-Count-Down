@@ -24,9 +24,21 @@ namespace CountDown
         private const float ProjectileRadius = .16f;
         private const float ProjectileLifetime = 4f;
         private const float GamepadDeadzone = .2f;
-        private const float AimAssistDegrees = 10f;
+        private const float AimAssistDegrees = 20f;
         private const float FighterSeparation = BodyRadius * 2f + .12f;
         private const float EnemyLineAvoidanceRadius = 1.45f;
+        private const float AimAcquireBonus = .2f;
+        private const float AimGraceDuration = .5f;
+        private const int InitialEnemyCount = 2;
+        private const float EnemyBaseMoveSpeed = 2.8f;
+        private const float EnemyMoveSpeedPerStage = .35f;
+        private const float EnemyMaxMoveSpeed = 6f;
+        private const int EnemyStageOneMinCount = 10;
+        private const int EnemyStageOneMaxCount = 15;
+        private const int EnemyMinCountFloor = 3;
+        private const int EnemyMaxCountFloor = 7;
+        private const float MeleeRange = 1.8f;
+        private const float MeleeCooldown = 15f;
 
         private enum InputMode
         {
@@ -123,13 +135,18 @@ namespace CountDown
         private void StartStage()
         {
             enemies.Clear();
-            for (int i = 0; i < stage; i++)
+            int enemyCount = InitialEnemyCount + stage - 1;
+            for (int i = 0; i < enemyCount; i++)
             {
-                Vector3 position = EnemySpawnPosition(i, stage);
+                Vector3 position = EnemySpawnPosition(i, enemyCount);
                 string name = i == 0 ? "TARGET" : "TARGET " + (i + 1);
                 Fighter spawned = CreateFighter(name, false,
                     position, new Color(1f, .24f, .18f), "Enemy");
                 spawned.opponent = player;
+                spawned.countMin = Mathf.Max(EnemyMinCountFloor,
+                    EnemyStageOneMinCount - (stage - 1));
+                spawned.countMax = Mathf.Max(EnemyMaxCountFloor,
+                    EnemyStageOneMaxCount - (stage - 1));
                 spawned.ResetCount();
                 enemies.Add(spawned);
             }
@@ -412,12 +429,7 @@ namespace CountDown
                 direction = player.gunPivot.forward;
             direction = ApplyAimAssist(player.gunPivot.position, direction);
             player.gunPivot.rotation = Quaternion.LookRotation(direction, Vector3.up);
-
-            bool meleePressed = Input.GetKeyDown(KeyCode.Space) ||
-                (inputMode == InputMode.Gamepad &&
-                 Input.GetKeyDown(KeyCode.JoystickButton4));
-            if (meleePressed && Time.time >= meleeReadyAt)
-                StartCoroutine(Melee());
+            TryAutoMelee();
         }
 
         private void UpdateInputMode()
@@ -435,8 +447,7 @@ namespace CountDown
             bool gamepadActive = leftStick.sqrMagnitude >
                     GamepadDeadzone * GamepadDeadzone ||
                 rightStick.sqrMagnitude > GamepadDeadzone * GamepadDeadzone ||
-                Input.GetKey(KeyCode.JoystickButton7) ||
-                Input.GetKey(KeyCode.JoystickButton4);
+                Input.GetKey(KeyCode.JoystickButton7);
             if (gamepadActive)
             {
                 inputMode = InputMode.Gamepad;
@@ -448,8 +459,7 @@ namespace CountDown
                 Mathf.Abs(Input.GetAxisRaw("Mouse X")) > .01f ||
                 Mathf.Abs(Input.GetAxisRaw("Mouse Y")) > .01f ||
                 Mathf.Abs(Input.GetAxisRaw("Horizontal")) > .01f ||
-                Mathf.Abs(Input.GetAxisRaw("Vertical")) > .01f ||
-                Input.GetKeyDown(KeyCode.Space);
+                Mathf.Abs(Input.GetAxisRaw("Vertical")) > .01f;
             if (mouseOrKeyboardActive)
                 inputMode = InputMode.Mouse;
         }
@@ -612,7 +622,14 @@ namespace CountDown
         {
             direction.y = 0f;
             if (direction.sqrMagnitude > .001f)
-                MoveFighter(enemy, direction.normalized * 4f * dt);
+                MoveFighter(enemy, direction.normalized *
+                    EnemyMoveSpeedForStage() * dt);
+        }
+
+        private float EnemyMoveSpeedForStage()
+        {
+            return Mathf.Min(EnemyMaxMoveSpeed,
+                EnemyBaseMoveSpeed + (stage - 1) * EnemyMoveSpeedPerStage);
         }
 
         private Vector3 ApplyAimAssist(Vector3 origin, Vector3 rawDirection)
@@ -718,6 +735,12 @@ namespace CountDown
             fighter.hasTarget = hitSomething && fighter.opponent != null &&
                 !fighter.opponent.dead &&
                 hit.collider.transform.IsChildOf(fighter.opponent.root);
+            bool acquiredTarget = fighter.aiming && fighter.hasTarget;
+            if (acquiredTarget && !fighter.wasActivelyTargeting)
+                fighter.countTimer += AimAcquireBonus;
+            if (acquiredTarget)
+                fighter.aimGraceUntil = Time.time + AimGraceDuration;
+            fighter.wasActivelyTargeting = acquiredTarget;
 
             fighter.laser.SetPosition(0, fighter.muzzle.position);
             fighter.laser.SetPosition(1, end);
@@ -730,7 +753,8 @@ namespace CountDown
             fighter.laser.startColor = beamColor;
             fighter.laser.endColor = new Color(beamColor.r, beamColor.g, beamColor.b, .15f);
 
-            bool canCount = fighter.aiming && fighter.hasTarget &&
+            bool canCount = fighter.aiming &&
+                (fighter.hasTarget || Time.time <= fighter.aimGraceUntil) &&
                 Time.time >= fighter.stunnedUntil;
             if (canCount)
             {
@@ -849,7 +873,7 @@ namespace CountDown
 
         private IEnumerator Melee()
         {
-            meleeReadyAt = Time.time + 7f;
+            meleeReadyAt = Time.time + MeleeCooldown;
             player.stunnedUntil = Time.time + .16f;
             Vector3 original = player.gunPivot.localEulerAngles;
             float elapsed = 0f;
@@ -862,25 +886,46 @@ namespace CountDown
                 yield return null;
             }
 
-            Fighter meleeTarget = ClosestAliveEnemy();
-            float distance = meleeTarget == null ? float.MaxValue :
-                Vector3.Distance(player.root.position, meleeTarget.root.position);
-            if (distance <= 1.8f)
+            int hitCount = 0;
+            for (int i = 0; i < enemies.Count; i++)
             {
-                meleeTarget.stunnedUntil = Time.time + .7f;
-                meleeTarget.aiming = false;
-                meleeTarget.ResetCount();
-                Damage(meleeTarget, 1, player);
+                Fighter target = enemies[i];
+                if (target.dead || Vector3.Distance(
+                    player.root.position, target.root.position) > MeleeRange)
+                    continue;
+                target.stunnedUntil = Time.time + .7f;
+                target.aiming = false;
+                target.ResetCount();
+                Damage(target, 1, player);
+                hitCount++;
+            }
+
+            if (hitCount > 0)
+            {
                 Play("Audio/MeleeHit", 92f, .1f, .7f);
             }
             else
             {
-                player.stunnedUntil = Time.time + .5f;
                 Play("Audio/MeleeMiss", 180f, .08f, .24f);
             }
 
             yield return new WaitForSeconds(.12f);
             player.gunPivot.localEulerAngles = original;
+        }
+
+        private void TryAutoMelee()
+        {
+            if (Time.time >= meleeReadyAt && HasEnemyInMeleeRange())
+                StartCoroutine(Melee());
+        }
+
+        private bool HasEnemyInMeleeRange()
+        {
+            for (int i = 0; i < enemies.Count; i++)
+                if (!enemies[i].dead && Vector3.Distance(
+                    player.root.position, enemies[i].root.position) <= MeleeRange)
+                    return true;
+            return false;
         }
 
         private Fighter ClosestAliveEnemy()
@@ -1214,8 +1259,8 @@ namespace CountDown
             if (inputMode == InputMode.Touch)
                 return "LEFT TOUCH MOVE   •   RIGHT TOUCH AIM";
             if (inputMode == InputMode.Gamepad)
-                return "LEFT STICK MOVE   •   RIGHT STICK AIM   •   RT HOLD AIM   •   LB BASH";
-            return "WASD MOVE   •   HOLD RMB AIM   •   SPACE BASH   •   ESC QUIT";
+                return "LEFT STICK MOVE   •   RIGHT STICK AIM   •   RT HOLD AIM   •   AUTO BASH";
+            return "WASD MOVE   •   HOLD RMB AIM   •   AUTO BASH   •   ESC QUIT";
         }
 
         private void DrawStick(Vector2 origin, Vector2 position, string label)
@@ -1257,7 +1302,8 @@ namespace CountDown
             GUI.Label(new Rect(panel.x + 10f, panel.y + 4f, 90f, 20f), "PLAYER", helpStyle);
             DrawHearts(new Rect(panel.x + 108f, panel.y + 8f, 135f, 16f),
                 player.health, true);
-            float cooldown = Mathf.Clamp01(1f - (meleeReadyAt - Time.time) / 7f);
+            float cooldown = Mathf.Clamp01(
+                1f - (meleeReadyAt - Time.time) / MeleeCooldown);
             Rect bar = new Rect(panel.x + 14f, panel.y + 43f, panel.width - 28f, 12f);
             GUI.color = new Color(.18f, .2f, .22f);
             GUI.DrawTexture(bar, white);
@@ -1335,8 +1381,10 @@ namespace CountDown
             public float countTimer;
             public bool aiming;
             public bool hasTarget;
+            public bool wasActivelyTargeting;
             public bool dead;
             public float stunnedUntil;
+            public float aimGraceUntil;
             public float nextDecisionAt;
             public float evadeDirection;
             public bool evading;
@@ -1344,10 +1392,12 @@ namespace CountDown
             public float pulse;
             public float hitFlash;
             public Vector3 lastPosition;
+            public int countMin = 3;
+            public int countMax = 7;
 
             public void ResetCount()
             {
-                count = isPlayer ? Random.Range(3, 8) : Random.Range(5, 16);
+                count = Random.Range(countMin, countMax + 1);
                 countTimer = 0f;
                 pulse = 1f;
             }
