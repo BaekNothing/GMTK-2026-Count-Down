@@ -19,6 +19,9 @@ namespace CountDown
         private const float AimMoveSpeed = 2f;
         private const float EmergencyDodgeMultiplier = 2f;
         private const float EmergencyDodgeDuration = .5f;
+        private const float ProjectileSpeed = 9f;
+        private const float ProjectileRadius = .16f;
+        private const float ProjectileLifetime = 4f;
 
         private Fighter player;
         private Fighter enemy;
@@ -522,14 +525,71 @@ namespace CountDown
 
         private void Fire(Fighter fighter)
         {
-            RaycastHit hit;
-            bool connected = Physics.Raycast(fighter.muzzle.position,
-                fighter.muzzle.forward, out hit, 30f) &&
-                hit.collider.transform.IsChildOf(fighter.opponent.root);
             Play("Audio/Gunshot", 115f, .13f, .75f);
             StartCoroutine(MuzzleFlash(fighter));
-            if (connected) Damage(fighter.opponent, 1, fighter);
+            StartCoroutine(FireProjectile(fighter,
+                fighter.muzzle.position, fighter.muzzle.forward.normalized));
             fighter.ResetCount();
+        }
+
+        private IEnumerator FireProjectile(Fighter source, Vector3 position,
+            Vector3 direction)
+        {
+            var projectile = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            projectile.name = source.isPlayer ? "Player Projectile" : "Enemy Projectile";
+            projectile.transform.SetParent(transform);
+            projectile.transform.position = position;
+            projectile.transform.localScale = Vector3.one * (ProjectileRadius * 2f);
+            projectile.GetComponent<Renderer>().material = MaterialFor(
+                null, Color.Lerp(source.accent, Color.white, .35f), 3100);
+            Destroy(projectile.GetComponent<Collider>());
+
+            var trailObject = NewObject("Projectile Trail");
+            trailObject.transform.position = position;
+            var trail = trailObject.AddComponent<TrailRenderer>();
+            trail.time = .22f;
+            trail.startWidth = ProjectileRadius * 1.35f;
+            trail.endWidth = 0f;
+            trail.material = MaterialFor(null, source.accent, 3099);
+            trail.startColor = source.accent;
+            trail.endColor = new Color(
+                source.accent.r, source.accent.g, source.accent.b, 0f);
+            trail.shadowCastingMode =
+                UnityEngine.Rendering.ShadowCastingMode.Off;
+
+            float expiresAt = Time.time + ProjectileLifetime;
+            while (!finished && Time.time < expiresAt)
+            {
+                float distance = ProjectileSpeed * Mathf.Min(Time.deltaTime, .05f);
+                RaycastHit[] hits = Physics.SphereCastAll(position,
+                    ProjectileRadius, direction, distance,
+                    Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+                bool connected = false;
+                for (int i = 0; i < hits.Length; i++)
+                {
+                    if (!hits[i].collider.transform.IsChildOf(source.opponent.root))
+                        continue;
+                    connected = true;
+                    break;
+                }
+
+                position += direction * distance;
+                projectile.transform.position = position;
+                trailObject.transform.position = position;
+                if (connected)
+                {
+                    Damage(source.opponent, 1, source);
+                    break;
+                }
+
+                if (Mathf.Abs(position.x) > ArenaWidth * .5f + 2f ||
+                    Mathf.Abs(position.z) > ArenaDepth * .5f + 2f)
+                    break;
+                yield return null;
+            }
+
+            Destroy(projectile);
+            Destroy(trailObject, trail.time);
         }
 
         private IEnumerator MuzzleFlash(Fighter fighter)

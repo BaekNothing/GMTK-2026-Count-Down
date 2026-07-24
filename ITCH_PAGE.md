@@ -22,6 +22,7 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- Replaced instant hitscan shots with visible, dodgeable projectiles.
 - Removed Unity branding from the startup splash and WebGL loading page.
 - Expanded the arena to twice its previous width and depth.
 - Releasing aim now grants 2x movement speed for 0.5 seconds as an emergency dodge.

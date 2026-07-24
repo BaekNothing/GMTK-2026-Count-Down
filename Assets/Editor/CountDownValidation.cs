@@ -54,6 +54,12 @@ public static class CountDownValidation
             Require(HasConstant("EmergencyDodgeMultiplier", 2f) &&
                 HasConstant("EmergencyDodgeDuration", .5f),
                 "Releasing aim must grant a 2x emergency dodge for 0.5 seconds.");
+            Require(HasConstant("ProjectileSpeed", 9f) &&
+                HasConstant("ProjectileRadius", .16f),
+                "Countdown weapons must fire visible, dodgeable projectiles.");
+            Require(typeof(CountDownGame).GetMethod("FireProjectile",
+                BindingFlags.Instance | BindingFlags.NonPublic) != null,
+                "Hitscan damage must be replaced by projectile travel.");
             Require(typeof(CountDownGame).GetField("PlayerTurnSpeed",
                 BindingFlags.Static | BindingFlags.NonPublic) == null,
                 "Player aiming must be instantaneous with no turn-speed limit.");
