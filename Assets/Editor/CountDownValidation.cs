@@ -85,6 +85,41 @@ public static class CountDownValidation
             Require(typeof(CountDownGame).GetMethod("PointerArenaPoint",
                 BindingFlags.Instance | BindingFlags.NonPublic) != null,
                 "Mouse aiming must follow the current pointer position.");
+            Require(HasConstant("AimAssistDegrees", 10f) &&
+                typeof(CountDownGame).GetMethod("ApplyAimAssist",
+                    BindingFlags.Instance | BindingFlags.NonPublic) != null,
+                "Player aim must snap to the nearest overlapping target within 10 degrees.");
+            Require(HasConstant("EnemyLineAvoidanceRadius", 1.45f) &&
+                typeof(CountDownGame).GetMethod("MoveEnemy",
+                    BindingFlags.Instance | BindingFlags.NonPublic) != null,
+                "Enemies must continuously move to escape the player's firing line.");
+            Require(HasConstant("FighterSeparation", 1.08f) &&
+                typeof(CountDownGame).GetMethod("ResolveAllFighterOverlaps",
+                    BindingFlags.Instance | BindingFlags.NonPublic) != null,
+                "Living fighters must maintain a non-overlapping separation.");
+            Transform playerRoot = Find("PLAYER").transform;
+            Transform targetRoot = Find("TARGET").transform;
+            Transform playerGun = playerRoot.Find("Gun Pivot");
+            Vector3 targetDirection = targetRoot.position +
+                Vector3.up * .85f - playerGun.position;
+            targetDirection.y = 0f;
+            Vector3 rawAssistedDirection =
+                Quaternion.Euler(0f, 8f, 0f) * targetDirection.normalized;
+            MethodInfo aimAssist = typeof(CountDownGame).GetMethod(
+                "ApplyAimAssist", BindingFlags.Instance | BindingFlags.NonPublic);
+            Vector3 assistedDirection = (Vector3)aimAssist.Invoke(
+                game, new object[] { playerGun.position, rawAssistedDirection });
+            Require(Vector3.Angle(assistedDirection, targetDirection) < .1f,
+                "An enemy inside the 10-degree cone must receive exact center aim.");
+            targetRoot.position = playerRoot.position;
+            MethodInfo resolveOverlaps = typeof(CountDownGame).GetMethod(
+                "ResolveAllFighterOverlaps",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            resolveOverlaps.Invoke(game, null);
+            Vector3 separation = targetRoot.position - playerRoot.position;
+            separation.y = 0f;
+            Require(separation.magnitude >= 1.079f,
+                "Overlap resolution must physically separate living fighters.");
             Renderer floorRenderer = Find("Replaceable Arena Floor").GetComponent<Renderer>();
             Require(floorRenderer.material.renderQueue == 1000 &&
                 floorRenderer.sortingOrder == -1000,

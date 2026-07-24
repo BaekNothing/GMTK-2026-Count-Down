@@ -41,6 +41,11 @@ The distance from each initial touch point controls stick strength.
 - Releasing aim now grants 2x movement speed for 0.5 seconds as an emergency dodge.
 - Updated the camera to follow the player throughout the larger arena.
 - Player aiming is now instantaneous with no interpolation or turn delay.
+- Aim now snaps to an enemy's center inside a 10-degree assist cone, preferring
+  the nearer target when silhouettes overlap.
+- Enemies now strafe continuously and actively leave the player's firing line,
+  making aim denial a consistent way to delay the countdown.
+- Living fighters maintain physical separation and can no longer overlap.
 - The desktop crosshair exactly matches the current mouse position.
 - Mobile aim directions are applied immediately.
 - Moved the arena rails into the background render layer with the floor.

@@ -24,6 +24,9 @@ namespace CountDown
         private const float ProjectileRadius = .16f;
         private const float ProjectileLifetime = 4f;
         private const float GamepadDeadzone = .2f;
+        private const float AimAssistDegrees = 10f;
+        private const float FighterSeparation = BodyRadius * 2f + .12f;
+        private const float EnemyLineAvoidanceRadius = 1.45f;
 
         private enum InputMode
         {
@@ -336,6 +339,7 @@ namespace CountDown
             for (int i = 0; i < enemies.Count; i++)
                 if (!enemies[i].dead)
                     UpdateEnemy(enemies[i], dt);
+            ResolveAllFighterOverlaps();
             UpdateWeapon(player, dt);
             for (int i = 0; i < enemies.Count; i++)
                 if (!enemies[i].dead)
@@ -380,7 +384,7 @@ namespace CountDown
             float speed = player.aiming ? AimMoveSpeed : NormalMoveSpeed;
             if (!player.aiming && Time.time < emergencyDodgeUntil)
                 speed *= EmergencyDodgeMultiplier;
-            player.root.position = ClampToArena(player.root.position + move * speed * dt);
+            MoveFighter(player, move * speed * dt);
 
             if (inputMode == InputMode.Mouse)
                 mouseAimPosition = Input.mousePosition;
@@ -406,6 +410,7 @@ namespace CountDown
             }
             if (direction.sqrMagnitude < .01f)
                 direction = player.gunPivot.forward;
+            direction = ApplyAimAssist(player.gunPivot.position, direction);
             player.gunPivot.rotation = Quaternion.LookRotation(direction, Vector3.up);
 
             bool meleePressed = Input.GetKeyDown(KeyCode.Space) ||
@@ -542,39 +547,55 @@ namespace CountDown
 
             Vector3 toPlayer = player.root.position - enemy.root.position;
             float distance = toPlayer.magnitude;
+            if (Time.time >= enemy.nextDecisionAt)
+            {
+                enemy.evadeDirection = Random.value < .5f ? -1f : 1f;
+                enemy.nextDecisionAt = Time.time + Random.Range(.65f, 1.15f);
+            }
+
+            Vector3 playerAim = player.gunPivot.forward;
+            playerAim.y = 0f;
+            playerAim = playerAim.sqrMagnitude > .01f
+                ? playerAim.normalized : Vector3.forward;
+            Vector3 fromMuzzle = enemy.root.position - player.muzzle.position;
+            fromMuzzle.y = 0f;
+            float alongLine = Vector3.Dot(fromMuzzle, playerAim);
+            Vector3 closestOnLine = player.muzzle.position +
+                playerAim * Mathf.Max(0f, alongLine);
+            closestOnLine.y = enemy.root.position.y;
+            Vector3 awayFromLine = enemy.root.position - closestOnLine;
+            float lineDistance = awayFromLine.magnitude;
+            bool inPlayerLine = alongLine > 0f &&
+                lineDistance < EnemyLineAvoidanceRadius;
+
+            Vector3 orbit = Vector3.Cross(Vector3.up, toPlayer.normalized) *
+                enemy.evadeDirection;
+            Vector3 lineEscape = lineDistance > .05f
+                ? awayFromLine.normalized
+                : orbit;
+            float urgency = player.aiming
+                ? Mathf.Lerp(.8f, 1.35f, 1f - Mathf.InverseLerp(1f, 7f, player.count))
+                : .65f;
+            Vector3 tacticalMove = inPlayerLine
+                ? lineEscape * (1.35f * urgency) + orbit * .35f
+                : orbit * .72f;
 
             if (distance < 2.5f)
             {
                 if (enemy.closeDetectedAt <= 0f) enemy.closeDetectedAt = Time.time;
                 if (Time.time - enemy.closeDetectedAt >= .3f)
-                    MoveEnemy(enemy, -toPlayer.normalized, dt);
+                    tacticalMove += -toPlayer.normalized * 1.35f;
             }
             else
             {
                 enemy.closeDetectedAt = 0f;
-                bool danger = player.count <= 1 && player.aiming &&
-                    player.hasTarget && player.opponent == enemy;
-                if (danger && Time.time >= enemy.nextDecisionAt)
-                {
-                    enemy.evading = Random.value < .7f;
-                    enemy.evadeDirection = Random.value < .5f ? -1f : 1f;
-                    enemy.nextDecisionAt = Time.time + Random.Range(.45f, .8f);
-                }
-
-                if (enemy.evading && Time.time < enemy.nextDecisionAt)
-                {
-                    Vector3 side = Vector3.Cross(Vector3.up, toPlayer.normalized) * enemy.evadeDirection;
-                    MoveEnemy(enemy, side, dt);
-                }
-                else
-                {
-                    enemy.evading = false;
-                    if (distance > 5.2f)
-                        MoveEnemy(enemy, toPlayer.normalized, dt * .45f);
-                    else if (distance < 3.4f)
-                        MoveEnemy(enemy, -toPlayer.normalized, dt * .4f);
-                }
+                if (distance > 6.2f)
+                    tacticalMove += toPlayer.normalized * .42f;
+                else if (distance < 3.4f)
+                    tacticalMove += -toPlayer.normalized * .65f;
             }
+
+            MoveEnemy(enemy, tacticalMove, dt);
 
             Vector3 flatTarget = player.root.position + Vector3.up * .85f - enemy.gunPivot.position;
             flatTarget.y = 0f;
@@ -590,8 +611,98 @@ namespace CountDown
         private void MoveEnemy(Fighter enemy, Vector3 direction, float dt)
         {
             direction.y = 0f;
-            enemy.root.position = ClampToArena(enemy.root.position +
-                direction.normalized * 4f * dt);
+            if (direction.sqrMagnitude > .001f)
+                MoveFighter(enemy, direction.normalized * 4f * dt);
+        }
+
+        private Vector3 ApplyAimAssist(Vector3 origin, Vector3 rawDirection)
+        {
+            rawDirection.y = 0f;
+            if (rawDirection.sqrMagnitude < .01f)
+                return Vector3.forward;
+
+            Vector3 normalized = rawDirection.normalized;
+            Fighter best = null;
+            float bestAngle = AimAssistDegrees + .001f;
+            float bestDistance = float.MaxValue;
+            for (int i = 0; i < enemies.Count; i++)
+            {
+                Fighter candidate = enemies[i];
+                if (candidate.dead) continue;
+                Vector3 toCandidate = candidate.root.position +
+                    Vector3.up * .85f - origin;
+                toCandidate.y = 0f;
+                float distance = toCandidate.magnitude;
+                if (distance < .01f) continue;
+                float angle = Vector3.Angle(normalized, toCandidate / distance);
+                if (angle > AimAssistDegrees) continue;
+
+                bool moreCentered = angle < bestAngle - .5f;
+                bool overlapsCurrent = Mathf.Abs(angle - bestAngle) <= .5f;
+                if (best == null || moreCentered ||
+                    (overlapsCurrent && distance < bestDistance))
+                {
+                    best = candidate;
+                    bestAngle = angle;
+                    bestDistance = distance;
+                }
+            }
+
+            if (best == null) return normalized;
+            Vector3 assisted = best.root.position + Vector3.up * .85f - origin;
+            assisted.y = 0f;
+            return assisted.normalized;
+        }
+
+        private void MoveFighter(Fighter fighter, Vector3 delta)
+        {
+            Vector3 candidate = ClampToArena(fighter.root.position + delta);
+            SeparateFromFighter(ref candidate, fighter, player);
+            for (int i = 0; i < enemies.Count; i++)
+                SeparateFromFighter(ref candidate, fighter, enemies[i]);
+            fighter.root.position = ClampToArena(candidate);
+        }
+
+        private static void SeparateFromFighter(
+            ref Vector3 candidate, Fighter moving, Fighter other)
+        {
+            if (other == null || other == moving || other.dead) return;
+            Vector3 offset = candidate - other.root.position;
+            offset.y = 0f;
+            float distance = offset.magnitude;
+            if (distance >= FighterSeparation) return;
+            Vector3 direction = distance > .001f
+                ? offset / distance
+                : ((moving.root.GetInstanceID() & 1) == 0
+                    ? Vector3.right : Vector3.left);
+            candidate += direction * (FighterSeparation - distance);
+        }
+
+        private void ResolveAllFighterOverlaps()
+        {
+            ResolvePair(player, null);
+            for (int i = 0; i < enemies.Count; i++)
+            {
+                if (enemies[i].dead) continue;
+                ResolvePair(enemies[i], player);
+                for (int j = i + 1; j < enemies.Count; j++)
+                    if (!enemies[j].dead)
+                        ResolvePair(enemies[i], enemies[j]);
+            }
+        }
+
+        private void ResolvePair(Fighter first, Fighter second)
+        {
+            if (first == null || second == null || first.dead || second.dead) return;
+            Vector3 offset = first.root.position - second.root.position;
+            offset.y = 0f;
+            float distance = offset.magnitude;
+            if (distance >= FighterSeparation) return;
+            Vector3 direction = distance > .001f
+                ? offset / distance : Vector3.right;
+            float correction = (FighterSeparation - distance) * .5f;
+            first.root.position = ClampToArena(first.root.position + direction * correction);
+            second.root.position = ClampToArena(second.root.position - direction * correction);
         }
 
         private void UpdateWeapon(Fighter fighter, float dt)
