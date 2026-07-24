@@ -58,7 +58,26 @@ public static class WebGLProjectSetup
                 $"WebGL build failed: {report.summary.result}");
         }
 
+        AddControlsToWebPage("Builds/WebGL/index.html");
         Debug.Log(
             $"WebGL build completed: {report.summary.totalSize} bytes");
+    }
+
+    private static void AddControlsToWebPage(string indexPath)
+    {
+        string html = File.ReadAllText(indexPath);
+        const string marker = "<!-- COUNT DOWN CONTROLS -->";
+        if (html.Contains(marker)) return;
+
+        const string controls = @"
+  <!-- COUNT DOWN CONTROLS -->
+  <section style=""max-width:960px;margin:18px auto;padding:16px 20px;color:#e5e7eb;background:#111827;font:16px/1.5 sans-serif;border-radius:10px"">
+    <strong>HOW TO PLAY</strong><br>
+    Desktop: WASD to move · Hold right mouse to aim horizontally · Space to bash · R to restart<br>
+    Mobile: Drag the left side to move · Hold and drag the right side to aim · Tap after game over to restart
+  </section>
+</body>";
+        html = html.Replace("</body>", controls);
+        File.WriteAllText(indexPath, html);
     }
 }

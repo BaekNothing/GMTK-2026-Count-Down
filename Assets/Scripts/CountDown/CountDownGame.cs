@@ -1,6 +1,5 @@
 using System.Collections;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 namespace CountDown
 {
@@ -28,6 +27,18 @@ namespace CountDown
         private GUIStyle labelStyle;
         private GUIStyle countStyle;
         private GUIStyle helpStyle;
+        private GUIStyle aimStyle;
+        private int moveTouchId = -1;
+        private int aimTouchId = -1;
+        private Vector2 moveTouchOrigin;
+        private Vector2 aimTouchOrigin;
+        private Vector2 moveTouchPosition;
+        private Vector2 aimTouchPosition;
+        private Vector2 touchMove;
+        private float touchAim;
+        private float aimScreenX;
+        private bool touchAiming;
+        private const float TouchStickRadius = 72f;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void EnsureGameExists()
@@ -40,6 +51,7 @@ namespace CountDown
         {
             Application.runInBackground = true;
             white = Texture2D.whiteTexture;
+            aimScreenX = Screen.width * .5f;
             BuildWorld();
         }
 
@@ -234,10 +246,14 @@ namespace CountDown
 
         private void Update()
         {
+            UpdateTouchControls();
+
             if (finished)
             {
                 if (Input.GetKeyDown(KeyCode.R))
-                    SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+                    RestartGame();
+                if (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began)
+                    RestartGame();
                 if (Input.GetKeyDown(KeyCode.Escape))
                     Quit();
                 UpdateCamera(false);
@@ -265,14 +281,21 @@ namespace CountDown
                 return;
             }
 
-            player.aiming = Input.GetMouseButton(1);
+            player.aiming = touchAiming || Input.GetMouseButton(1);
             Vector3 move = new Vector3(Input.GetAxisRaw("Horizontal"), 0f,
                 Input.GetAxisRaw("Vertical"));
+            if (touchMove.sqrMagnitude > move.sqrMagnitude)
+                move = new Vector3(touchMove.x, 0f, touchMove.y);
             move = Vector3.ClampMagnitude(move, 1f);
             float speed = player.aiming ? 2f : 5f;
             player.root.position = ClampToArena(player.root.position + move * speed * dt);
 
-            Vector3 aimPoint = MouseArenaPoint();
+            if (touchAiming)
+                aimScreenX = Mathf.Clamp(aimScreenX + touchAim * Screen.width * .7f * dt,
+                    0f, Screen.width);
+            else
+                aimScreenX = Input.mousePosition.x;
+            Vector3 aimPoint = ScreenAimPoint(aimScreenX);
             Vector3 direction = aimPoint - player.gunPivot.position;
             direction.y = 0f;
             if (direction.sqrMagnitude > .02f)
@@ -280,6 +303,76 @@ namespace CountDown
 
             if (Input.GetKeyDown(KeyCode.Space) && Time.time >= meleeReadyAt)
                 StartCoroutine(Melee());
+        }
+
+        private void RestartGame()
+        {
+            StopAllCoroutines();
+            for (int i = transform.childCount - 1; i >= 0; i--)
+                Destroy(transform.GetChild(i).gameObject);
+
+            player = null;
+            enemy = null;
+            gameCamera = null;
+            audioSource = null;
+            finished = false;
+            shake = 0f;
+            moveTouchId = aimTouchId = -1;
+            touchMove = Vector2.zero;
+            touchAim = 0f;
+            touchAiming = false;
+            aimScreenX = Screen.width * .5f;
+            BuildWorld();
+        }
+
+        private void UpdateTouchControls()
+        {
+            touchMove = Vector2.zero;
+            touchAim = 0f;
+            touchAiming = false;
+
+            for (int i = 0; i < Input.touchCount; i++)
+            {
+                Touch touch = Input.GetTouch(i);
+                bool ended = touch.phase == TouchPhase.Ended ||
+                    touch.phase == TouchPhase.Canceled;
+
+                if (touch.phase == TouchPhase.Began)
+                {
+                    if (touch.position.x < Screen.width * .5f && moveTouchId < 0)
+                    {
+                        moveTouchId = touch.fingerId;
+                        moveTouchOrigin = moveTouchPosition = touch.position;
+                    }
+                    else if (touch.position.x >= Screen.width * .5f && aimTouchId < 0)
+                    {
+                        aimTouchId = touch.fingerId;
+                        aimTouchOrigin = aimTouchPosition = touch.position;
+                    }
+                }
+
+                if (touch.fingerId == moveTouchId)
+                {
+                    if (ended) moveTouchId = -1;
+                    else
+                    {
+                        moveTouchPosition = touch.position;
+                        touchMove = Vector2.ClampMagnitude(
+                            (moveTouchPosition - moveTouchOrigin) / TouchStickRadius, 1f);
+                    }
+                }
+                if (touch.fingerId == aimTouchId)
+                {
+                    if (ended) aimTouchId = -1;
+                    else
+                    {
+                        aimTouchPosition = touch.position;
+                        touchAim = Mathf.Clamp(
+                            (aimTouchPosition.x - aimTouchOrigin.x) / TouchStickRadius, -1f, 1f);
+                        touchAiming = true;
+                    }
+                }
+            }
         }
 
         private void UpdateEnemy(float dt)
@@ -486,9 +579,10 @@ namespace CountDown
             return value;
         }
 
-        private Vector3 MouseArenaPoint()
+        private Vector3 ScreenAimPoint(float screenX)
         {
-            Ray ray = gameCamera.ScreenPointToRay(Input.mousePosition);
+            Ray ray = gameCamera.ScreenPointToRay(new Vector3(
+                screenX, Screen.height * .5f, 0f));
             var plane = new Plane(Vector3.up, Vector3.up * .9f);
             float enter;
             return plane.Raycast(ray, out enter) ? ray.GetPoint(enter) : enemy.root.position;
@@ -565,6 +659,11 @@ namespace CountDown
                 fontStyle = FontStyle.Normal,
                 normal = { textColor = new Color(.72f, .75f, .78f) }
             };
+            aimStyle = new GUIStyle(labelStyle)
+            {
+                fontSize = Mathf.Max(13, Mathf.RoundToInt(Screen.height * .021f)),
+                normal = { textColor = Color.white }
+            };
         }
 
         private void OnGUI()
@@ -576,6 +675,8 @@ namespace CountDown
             DrawWorldCount(player);
             DrawWorldCount(enemy);
             DrawCrosshair();
+            DrawAimState();
+            DrawTouchControls();
             GUI.Label(new Rect(0f, Screen.height - 30f, Screen.width, 24f),
                 "WASD MOVE   •   HOLD RMB AIM   •   SPACE BASH   •   ESC QUIT", helpStyle);
 
@@ -588,8 +689,43 @@ namespace CountDown
                 GUI.Label(new Rect(0f, Screen.height * .32f, Screen.width,
                     Screen.height * .16f), result, titleStyle);
                 GUI.Label(new Rect(0f, Screen.height * .5f, Screen.width, 40f),
-                    "R TO RESTART", labelStyle);
+                    Input.touchSupported ? "TAP TO RESTART" : "R TO RESTART", labelStyle);
             }
+        }
+
+        private void DrawAimState()
+        {
+            Rect badge = new Rect((Screen.width - 150f) * .5f, 82f, 150f, 34f);
+            DrawPanel(badge, player.aiming
+                ? new Color(.08f, .72f, .38f, .92f)
+                : new Color(.1f, .11f, .12f, .72f));
+            GUI.Label(badge, player.aiming ? "AIMING" : "MOVE MODE", aimStyle);
+        }
+
+        private void DrawTouchControls()
+        {
+            if (!Input.touchSupported && Input.touchCount == 0) return;
+            DrawStick(moveTouchId >= 0 ? moveTouchOrigin : new Vector2(92f, 100f),
+                moveTouchId >= 0 ? moveTouchPosition : new Vector2(92f, 100f), "MOVE");
+            DrawStick(aimTouchId >= 0 ? aimTouchOrigin :
+                    new Vector2(Screen.width - 92f, 100f),
+                aimTouchId >= 0 ? aimTouchPosition :
+                    new Vector2(Screen.width - 92f, 100f), "AIM");
+        }
+
+        private void DrawStick(Vector2 origin, Vector2 position, string label)
+        {
+            origin.y = Screen.height - origin.y;
+            position.y = Screen.height - position.y;
+            position = origin + Vector2.ClampMagnitude(position - origin, TouchStickRadius);
+            GUI.color = new Color(1f, 1f, 1f, .16f);
+            GUI.DrawTexture(new Rect(origin.x - TouchStickRadius, origin.y - TouchStickRadius,
+                TouchStickRadius * 2f, TouchStickRadius * 2f), white);
+            GUI.color = new Color(1f, 1f, 1f, .42f);
+            GUI.DrawTexture(new Rect(position.x - 28f, position.y - 28f, 56f, 56f), white);
+            GUI.color = Color.white;
+            GUI.Label(new Rect(origin.x - 55f, origin.y + TouchStickRadius + 4f, 110f, 24f),
+                label, helpStyle);
         }
 
         private void DrawTopStatus()
@@ -634,7 +770,7 @@ namespace CountDown
 
         private void DrawCrosshair()
         {
-            Vector2 mouse = Event.current.mousePosition;
+            Vector2 mouse = new Vector2(aimScreenX, Screen.height * .5f);
             Color color = player.hasTarget && player.aiming
                 ? new Color(.3f, 1f, .62f) : new Color(1f, 1f, 1f, .75f);
             GUI.color = color;

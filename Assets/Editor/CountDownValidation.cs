@@ -37,6 +37,15 @@ public static class CountDownValidation
                 "Player body hitbox is required.");
             Require(Find("TARGET").GetComponent<CapsuleCollider>() != null,
                 "Enemy body hitbox is required.");
+            Require(typeof(CountDownGame).GetMethod("RestartGame",
+                BindingFlags.Instance | BindingFlags.NonPublic) != null,
+                "Safe in-place restart is required.");
+            Require(typeof(CountDownGame).GetMethod("UpdateTouchControls",
+                BindingFlags.Instance | BindingFlags.NonPublic) != null,
+                "Mobile touch controls are required.");
+            Require(typeof(CountDownGame).GetMethod("ScreenAimPoint",
+                BindingFlags.Instance | BindingFlags.NonPublic) != null,
+                "Horizontal-only aiming is required.");
 
             Debug.Log("COUNT DOWN runtime validation passed.");
             EditorApplication.Exit(0);
