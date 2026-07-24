@@ -38,6 +38,7 @@ The distance from each initial touch point controls stick strength.
 - Added automatic click, touch, and gamepad input-mode switching.
 - Added dual-stick gamepad controls with right-trigger aim.
 - Replaced instant hitscan shots with visible, dodgeable projectiles.
+- Increased projectile travel speed by 30%, from 9 to 11.7 meters per second.
 - Removed Unity branding from the startup splash and WebGL loading page.
 - Expanded the arena to twice its previous width and depth.
 - Releasing aim now grants 2x movement speed for 0.5 seconds as an emergency dodge.

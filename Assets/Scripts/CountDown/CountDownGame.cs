@@ -20,7 +20,7 @@ namespace CountDown
         private const float AimMoveSpeed = 2f;
         private const float EmergencyDodgeMultiplier = 2f;
         private const float EmergencyDodgeDuration = .5f;
-        private const float ProjectileSpeed = 9f;
+        private const float ProjectileSpeed = 11.7f;
         private const float ProjectileRadius = .16f;
         private const float ProjectileLifetime = 4f;
         private const float GamepadDeadzone = .2f;

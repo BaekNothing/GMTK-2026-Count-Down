@@ -76,7 +76,7 @@ public static class CountDownValidation
             Require(HasConstant("EmergencyDodgeMultiplier", 2f) &&
                 HasConstant("EmergencyDodgeDuration", .5f),
                 "Releasing aim must grant a 2x emergency dodge for 0.5 seconds.");
-            Require(HasConstant("ProjectileSpeed", 9f) &&
+            Require(HasConstant("ProjectileSpeed", 11.7f) &&
                 HasConstant("ProjectileRadius", .16f),
                 "Countdown weapons must fire visible, dodgeable projectiles.");
             Require(typeof(CountDownGame).GetMethod("FireProjectile",
