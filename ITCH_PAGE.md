@@ -34,6 +34,11 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- Enemy movement speed is 10% lower at every stage.
+- Holding aim now locks the first assisted target until aim is released. Moving
+  the virtual aim point closer to another enemy transfers the lock, and a
+  replaceable translucent target marker identifies the active lock.
+- Aim-lock acquisition now uses a tighter 15-degree assist cone.
 - Locked shots now recalculate a direct path to the target hitbox center at the
   instant of firing, and player projectiles travel 10% faster.
 - Replaced fighter panel-like collision with invisible 3D box hitboxes so
@@ -44,8 +49,6 @@ The distance from each initial touch point controls stick strength.
   starting count, then shrinks smoothly as the countdown advances.
 - Player and enemy countdowns now advance whenever they aim, even if the laser
   is not currently touching an opponent.
-- During the final 0.3 seconds before firing, aim assist expands to 120 degrees
-  and prioritizes the current lock to prevent last-moment stray shots.
 - The player now dims during the 1.5-second post-melee movement lock.
 - Pulling the camera back 15% gives the wide-screen arena more breathing room.
 - Melee now has a 1.5-second movement recovery and hits 10% beyond its visible

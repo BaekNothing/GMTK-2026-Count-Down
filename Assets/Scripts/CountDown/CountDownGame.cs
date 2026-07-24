@@ -31,9 +31,7 @@ namespace CountDown
         private const int PlayerProjectileDamage = 3;
         private const int EnemyProjectileDamage = 1;
         private const float GamepadDeadzone = .2f;
-        private const float AimAssistDegrees = 20f;
-        private const float FinalAimAssistDegrees = 120f;
-        private const float FinalAimAssistDuration = .3f;
+        private const float AimAssistDegrees = 15f;
         private const float FighterSeparation = BodyRadius * 2f + .12f;
         private const float EnemyLineAvoidanceRadius = 1.45f;
         private const float EnemyProjectileDodgeDistance = 3.2f;
@@ -45,9 +43,9 @@ namespace CountDown
         private const float AimingCameraFieldOfView = 42f;
         private const float AimFeedbackSpeed = 5f;
         private const int InitialEnemyCount = 2;
-        private const float EnemyBaseMoveSpeed = 2.8f;
-        private const float EnemyMoveSpeedPerStage = .35f;
-        private const float EnemyMaxMoveSpeed = 6f;
+        private const float EnemyBaseMoveSpeed = 2.52f;
+        private const float EnemyMoveSpeedPerStage = .315f;
+        private const float EnemyMaxMoveSpeed = 5.4f;
         private const int EnemyStageOneMinCount = 10;
         private const int EnemyStageOneMaxCount = 15;
         private const int EnemyMinCountFloor = 3;
@@ -354,8 +352,61 @@ namespace CountDown
             if (isPlayer)
                 CreateMeleeRangeIndicator(fighter);
             else
+            {
                 CreateEnemyFireWarning(fighter);
+                CreateAimLockMarker(fighter);
+            }
             return fighter;
+        }
+
+        private void CreateAimLockMarker(Fighter fighter)
+        {
+            var marker = NewObject("Aim Lock Target");
+            marker.transform.SetParent(fighter.root, true);
+            fighter.aimLockMarker = marker.AddComponent<SpriteRenderer>();
+            fighter.aimLockMarker.sprite =
+                Resources.Load<Sprite>("CountDown/Sprites/AimLock") ??
+                CreateAimLockPlaceholderSprite();
+            fighter.aimLockMarker.color = new Color(.35f, 1f, .72f, .62f);
+            fighter.aimLockMarker.sortingOrder = 32;
+            fighter.aimLockMarker.enabled = false;
+        }
+
+        private static Sprite CreateAimLockPlaceholderSprite()
+        {
+            const int size = 64;
+            const float radius = 25f;
+            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                name = "Generated Aim Lock Placeholder",
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp
+            };
+            var pixels = new Color32[size * size];
+            Color32 clear = new Color32(0, 0, 0, 0);
+            Color32 ring = new Color32(255, 255, 255, 220);
+            Vector2 center = Vector2.one * ((size - 1) * .5f);
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    Vector2 delta = new Vector2(x, y) - center;
+                    float distance = delta.magnitude;
+                    bool circle = Mathf.Abs(distance - radius) <= 1.4f;
+                    bool horizontalTick = Mathf.Abs(delta.y) <= 1f &&
+                        Mathf.Abs(delta.x) >= radius - 6f &&
+                        Mathf.Abs(delta.x) <= radius + 4f;
+                    bool verticalTick = Mathf.Abs(delta.x) <= 1f &&
+                        Mathf.Abs(delta.y) >= radius - 6f &&
+                        Mathf.Abs(delta.y) <= radius + 4f;
+                    pixels[y * size + x] =
+                        circle || horizontalTick || verticalTick ? ring : clear;
+                }
+            }
+            texture.SetPixels32(pixels);
+            texture.Apply();
+            return Sprite.Create(texture, new Rect(0f, 0f, size, size),
+                new Vector2(.5f, .5f), 64f);
         }
 
         private void CreateFuseVisuals(Fighter fighter)
@@ -542,6 +593,7 @@ namespace CountDown
             if (Time.time < player.stunnedUntil)
             {
                 player.aiming = false;
+                ClearPlayerAimLock();
                 return;
             }
 
@@ -558,7 +610,10 @@ namespace CountDown
                 Input.GetMouseButton(1);
             player.aiming = wantsToAim;
             if (wasAiming && !wantsToAim)
+            {
                 emergencyDodgeUntil = Time.time + EmergencyDodgeDuration;
+                ClearPlayerAimLock();
+            }
 
             Vector3 move = inputMode == InputMode.Gamepad
                 ? new Vector3(gamepadMove.x, 0f, gamepadMove.y)
@@ -840,21 +895,7 @@ namespace CountDown
                 return Vector3.forward;
 
             Vector3 normalized = rawDirection.normalized;
-            bool finalStickyAim = player != null && player.count == 1 &&
-                player.countTimer >= 1f - FinalAimAssistDuration;
-            float assistDegrees = finalStickyAim
-                ? FinalAimAssistDegrees : AimAssistDegrees;
-
-            if (finalStickyAim && player.opponent != null &&
-                !player.opponent.dead)
-            {
-                Vector3 toLockedTarget = player.opponent.root.position +
-                    Vector3.up * .85f - origin;
-                toLockedTarget.y = 0f;
-                if (toLockedTarget.sqrMagnitude > .01f &&
-                    Vector3.Angle(normalized, toLockedTarget) <= assistDegrees)
-                    return toLockedTarget.normalized;
-            }
+            float assistDegrees = AimAssistDegrees;
 
             Fighter best = null;
             float bestAngle = assistDegrees + .001f;
@@ -882,10 +923,59 @@ namespace CountDown
                 }
             }
 
-            if (best == null) return normalized;
-            Vector3 assisted = best.root.position + Vector3.up * .85f - origin;
+            if (player == null || !player.aiming)
+                return DirectionToAimTarget(origin, best, normalized);
+
+            if (player.aimLockTarget == null || player.aimLockTarget.dead)
+                player.aimLockTarget = best;
+            else
+                player.aimLockTarget = SelectAimLockTarget(
+                    origin, normalized, player.aimLockTarget);
+
+            return DirectionToAimTarget(
+                origin, player.aimLockTarget, normalized);
+        }
+
+        private Fighter SelectAimLockTarget(Vector3 origin,
+            Vector3 rawDirection, Fighter current)
+        {
+            Vector3 currentPoint = GetFighterAimPoint(current);
+            currentPoint.y = origin.y;
+            float lockDistance = Vector3.Distance(origin, currentPoint);
+            Vector3 virtualAimPoint = origin + rawDirection * lockDistance;
+            Fighter best = current;
+            float bestDistance = (currentPoint - virtualAimPoint).sqrMagnitude;
+
+            for (int i = 0; i < enemies.Count; i++)
+            {
+                Fighter candidate = enemies[i];
+                if (candidate.dead || candidate == current) continue;
+                Vector3 candidatePoint = GetFighterAimPoint(candidate);
+                candidatePoint.y = origin.y;
+                float distance =
+                    (candidatePoint - virtualAimPoint).sqrMagnitude;
+                if (distance + .001f >= bestDistance) continue;
+                best = candidate;
+                bestDistance = distance;
+            }
+
+            return best;
+        }
+
+        private static Vector3 DirectionToAimTarget(Vector3 origin,
+            Fighter target, Vector3 fallback)
+        {
+            if (target == null) return fallback;
+            Vector3 assisted = GetFighterAimPoint(target) - origin;
             assisted.y = 0f;
-            return assisted.normalized;
+            return assisted.sqrMagnitude > .01f
+                ? assisted.normalized : fallback;
+        }
+
+        private void ClearPlayerAimLock()
+        {
+            if (player != null)
+                player.aimLockTarget = null;
         }
 
         private void MoveFighter(Fighter fighter, Vector3 delta)
@@ -1355,8 +1445,25 @@ namespace CountDown
                     Mathf.Sin(Time.time * 7f) * Mathf.Min(lean.magnitude * .006f, .035f), 0f);
             UpdateSpriteAnimation(fighter, lean.magnitude);
             UpdateFusePresentation(fighter, dt);
+            UpdateAimLockMarker(fighter);
             if (fighter.isPlayer)
                 UpdateMeleeRangeIndicator(fighter);
+        }
+
+        private void UpdateAimLockMarker(Fighter fighter)
+        {
+            if (fighter.aimLockMarker == null) return;
+            bool visible = player != null && player.aiming &&
+                player.aimLockTarget == fighter && !fighter.dead;
+            fighter.aimLockMarker.enabled = visible;
+            if (!visible) return;
+            fighter.aimLockMarker.transform.position =
+                GetFighterAimPoint(fighter);
+            fighter.aimLockMarker.transform.rotation =
+                gameCamera.transform.rotation;
+            float pulse = 1.08f + Mathf.PingPong(Time.time * .8f, .08f);
+            fighter.aimLockMarker.transform.localScale =
+                Vector3.one * pulse;
         }
 
         private void UpdateFusePresentation(Fighter fighter, float dt)
@@ -1897,10 +2004,12 @@ namespace CountDown
             public LineRenderer meleeCooldownRing;
             public Renderer bodyRenderer;
             public SpriteRenderer spriteRenderer;
+            public SpriteRenderer aimLockMarker;
             public Dictionary<string, Sprite> spriteFrames;
             public Color baseBodyColor;
             public GameObject fireWarning;
             public Fighter opponent;
+            public Fighter aimLockTarget;
             public bool isPlayer;
             public string displayName;
             public Color accent;

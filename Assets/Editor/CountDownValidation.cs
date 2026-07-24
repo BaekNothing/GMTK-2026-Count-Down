@@ -113,12 +113,10 @@ public static class CountDownValidation
             Require(typeof(CountDownGame).GetMethod("PointerArenaPoint",
                 BindingFlags.Instance | BindingFlags.NonPublic) != null,
                 "Mouse aiming must follow the current pointer position.");
-            Require(HasConstant("AimAssistDegrees", 20f) &&
-                HasConstant("FinalAimAssistDegrees", 120f) &&
-                HasConstant("FinalAimAssistDuration", .3f) &&
+            Require(HasConstant("AimAssistDegrees", 15f) &&
                 typeof(CountDownGame).GetMethod("ApplyAimAssist",
                     BindingFlags.Instance | BindingFlags.NonPublic) != null,
-                "Player aim must expand from 20 to 120 degrees for the final 0.3 seconds.");
+                "Player aim-lock acquisition must use a 15-degree assist cone.");
             Require(HasConstant("EnemyLineAvoidanceRadius", 1.45f) &&
                 HasConstant("EnemyProjectileDodgeDistance", 3.2f) &&
                 typeof(CountDownGame).GetMethod("TryGetProjectileEscape",
@@ -140,13 +138,21 @@ public static class CountDownValidation
                 "Aiming must display a dark edge vignette.");
             Require(HasConstant("InitialEnemyCount", 2),
                 "Stage one must begin with two enemies.");
-            Require(HasConstant("EnemyBaseMoveSpeed", 2.8f) &&
-                HasConstant("EnemyMoveSpeedPerStage", .35f) &&
+            Require(HasConstant("EnemyBaseMoveSpeed", 2.52f) &&
+                HasConstant("EnemyMoveSpeedPerStage", .315f) &&
+                HasConstant("EnemyMaxMoveSpeed", 5.4f) &&
                 HasConstant("EnemyStageOneMinCount", 10) &&
                 HasConstant("EnemyStageOneMaxCount", 15) &&
                 HasConstant("EnemyMinCountFloor", 3) &&
                 HasConstant("EnemyMaxCountFloor", 7),
                 "Enemy movement speed must rise and starting counts must fall with stage.");
+            Require(typeof(CountDownGame).GetMethod("SelectAimLockTarget",
+                BindingFlags.Instance | BindingFlags.NonPublic) != null &&
+                typeof(CountDownGame).GetMethod("ClearPlayerAimLock",
+                    BindingFlags.Instance | BindingFlags.NonPublic) != null,
+                "Aim lock must persist, switch by virtual aim proximity, and clear on release.");
+            Require(CountObjects("Aim Lock Target") == 2,
+                "Each initial enemy requires a replaceable aim-lock target marker.");
             Require(HasConstant("MeleeRange", 1.8f) &&
                 HasConstant("MeleeHitRange", 1.98f) &&
                 HasConstant("MeleeCooldown", 15f) &&
@@ -185,13 +191,13 @@ public static class CountDownValidation
                 Vector3.up * .85f - playerGun.position;
             targetDirection.y = 0f;
             Vector3 rawAssistedDirection =
-                Quaternion.Euler(0f, -18f, 0f) * targetDirection.normalized;
+                Quaternion.Euler(0f, -12f, 0f) * targetDirection.normalized;
             MethodInfo aimAssist = typeof(CountDownGame).GetMethod(
                 "ApplyAimAssist", BindingFlags.Instance | BindingFlags.NonPublic);
             Vector3 assistedDirection = (Vector3)aimAssist.Invoke(
                 game, new object[] { playerGun.position, rawAssistedDirection });
             Require(Vector3.Angle(assistedDirection, targetDirection) < .1f,
-                "An enemy inside the 20-degree cone must receive exact center aim.");
+                "An enemy inside the 15-degree cone must receive exact center aim.");
             targetRoot.position = playerRoot.position;
             MethodInfo resolveOverlaps = typeof(CountDownGame).GetMethod(
                 "ResolveAllFighterOverlaps",
