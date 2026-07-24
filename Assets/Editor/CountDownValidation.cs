@@ -48,6 +48,12 @@ public static class CountDownValidation
                 "Mobile touch controls are required.");
             Require(HasConstant("EnemyTurnSpeed", 63f),
                 "Enemy turn speed must be 30% slower than baseline.");
+            Require(HasConstant("ArenaWidth", 24f) &&
+                HasConstant("ArenaDepth", 16f),
+                "The playable arena must be twice as wide and twice as deep.");
+            Require(HasConstant("EmergencyDodgeMultiplier", 2f) &&
+                HasConstant("EmergencyDodgeDuration", .5f),
+                "Releasing aim must grant a 2x emergency dodge for 0.5 seconds.");
             Require(typeof(CountDownGame).GetField("PlayerTurnSpeed",
                 BindingFlags.Static | BindingFlags.NonPublic) == null,
                 "Player aiming must be instantaneous with no turn-speed limit.");

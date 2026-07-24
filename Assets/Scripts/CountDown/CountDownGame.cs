@@ -9,12 +9,16 @@ namespace CountDown
     /// </summary>
     public sealed class CountDownGame : MonoBehaviour
     {
-        private const float ArenaWidth = 12f;
-        private const float ArenaDepth = 8f;
+        private const float ArenaWidth = 24f;
+        private const float ArenaDepth = 16f;
         private const float BodyRadius = .48f;
         private const float BodyHeight = 1.7f;
         private const float FighterGroundHeight = .04f;
         private const int MaxHealth = 3;
+        private const float NormalMoveSpeed = 5f;
+        private const float AimMoveSpeed = 2f;
+        private const float EmergencyDodgeMultiplier = 2f;
+        private const float EmergencyDodgeDuration = .5f;
 
         private Fighter player;
         private Fighter enemy;
@@ -22,6 +26,7 @@ namespace CountDown
         private AudioSource audioSource;
         private bool finished;
         private float meleeReadyAt;
+        private float emergencyDodgeUntil;
         private float shake;
         private Texture2D white;
         private GUIStyle titleStyle;
@@ -123,9 +128,11 @@ namespace CountDown
             CreateBoundary(new Vector3(-ArenaWidth * .5f - .2f, .15f, 0f),
                 new Vector3(.18f, .3f, ArenaDepth));
 
-            for (int i = -5; i <= 5; i++)
+            int halfWidth = Mathf.FloorToInt(ArenaWidth * .5f);
+            int halfDepth = Mathf.FloorToInt(ArenaDepth * .5f);
+            for (int i = -halfWidth + 1; i < halfWidth; i++)
                 CreateStripe(new Vector3(i, .006f, 0f), new Vector3(.018f, .01f, ArenaDepth));
-            for (int i = -3; i <= 3; i++)
+            for (int i = -halfDepth + 1; i < halfDepth; i++)
                 CreateStripe(new Vector3(0f, .007f, i), new Vector3(ArenaWidth, .01f, .018f));
         }
 
@@ -300,13 +307,20 @@ namespace CountDown
                 return;
             }
 
-            player.aiming = touchAiming || Input.GetMouseButton(1);
+            bool wasAiming = player.aiming;
+            bool wantsToAim = touchAiming || Input.GetMouseButton(1);
+            player.aiming = wantsToAim;
+            if (wasAiming && !wantsToAim)
+                emergencyDodgeUntil = Time.time + EmergencyDodgeDuration;
+
             Vector3 move = new Vector3(Input.GetAxisRaw("Horizontal"), 0f,
                 Input.GetAxisRaw("Vertical"));
             if (touchMove.sqrMagnitude > move.sqrMagnitude)
                 move = new Vector3(touchMove.x, 0f, touchMove.y);
             move = Vector3.ClampMagnitude(move, 1f);
-            float speed = player.aiming ? 2f : 5f;
+            float speed = player.aiming ? AimMoveSpeed : NormalMoveSpeed;
+            if (!player.aiming && Time.time < emergencyDodgeUntil)
+                speed *= EmergencyDodgeMultiplier;
             player.root.position = ClampToArena(player.root.position + move * speed * dt);
 
             if (!touchAiming)
@@ -345,6 +359,7 @@ namespace CountDown
             audioSource = null;
             finished = false;
             shake = 0f;
+            emergencyDodgeUntil = 0f;
             moveTouchId = aimTouchId = -1;
             touchMove = Vector2.zero;
             touchAim = Vector2.zero;
@@ -620,14 +635,15 @@ namespace CountDown
         private void UpdateCamera(bool immediate)
         {
             if (gameCamera == null || player == null) return;
-            Vector3 follow = new Vector3(player.root.position.x * .22f, 7.8f,
+            Vector3 follow = new Vector3(player.root.position.x, 7.8f,
                 player.root.position.z - 8.8f);
             if (shake > 0f)
                 follow += Random.insideUnitSphere * shake;
             gameCamera.transform.position = immediate ? follow :
                 Vector3.Lerp(gameCamera.transform.position, follow, Time.deltaTime * 5f);
             Quaternion rotation = Quaternion.LookRotation(
-                new Vector3(0f, .75f, .8f) - gameCamera.transform.position, Vector3.up);
+                player.root.position + new Vector3(0f, .75f, .8f) -
+                gameCamera.transform.position, Vector3.up);
             gameCamera.transform.rotation = immediate ? rotation :
                 Quaternion.Slerp(gameCamera.transform.rotation, rotation, Time.deltaTime * 5f);
         }

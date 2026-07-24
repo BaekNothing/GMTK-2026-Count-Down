@@ -22,6 +22,9 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- Expanded the arena to twice its previous width and depth.
+- Releasing aim now grants 2x movement speed for 0.5 seconds as an emergency dodge.
+- Updated the camera to follow the player throughout the larger arena.
 - Player aiming is now instantaneous with no interpolation or turn delay.
 - The desktop crosshair exactly matches the current mouse position.
 - Mobile aim directions are applied immediately.
