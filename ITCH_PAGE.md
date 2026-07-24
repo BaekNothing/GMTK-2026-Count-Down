@@ -22,8 +22,9 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- Player aiming is now instantaneous with no interpolation or turn delay.
+- The desktop crosshair exactly matches the current mouse position.
+- Mobile aim directions are applied immediately.
 - Added the build version to the upper-right corner.
-- Desktop aiming now continuously follows the mouse cursor.
-- Touch aiming remains relative to the initial touch point.
 - Forced the arena floor behind all gameplay objects in WebGL.
 - Fixed fighters appearing buried in or hidden by the floor.

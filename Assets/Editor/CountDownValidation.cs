@@ -46,10 +46,11 @@ public static class CountDownValidation
             Require(typeof(CountDownGame).GetMethod("UpdateTouchControls",
                 BindingFlags.Instance | BindingFlags.NonPublic) != null,
                 "Mobile touch controls are required.");
-            Require(HasConstant("PlayerTurnSpeed", 135f),
-                "Player turn speed must be 50% faster than baseline.");
             Require(HasConstant("EnemyTurnSpeed", 63f),
                 "Enemy turn speed must be 30% slower than baseline.");
+            Require(typeof(CountDownGame).GetField("PlayerTurnSpeed",
+                BindingFlags.Static | BindingFlags.NonPublic) == null,
+                "Player aiming must be instantaneous with no turn-speed limit.");
             Require(typeof(CountDownGame).GetMethod("PointerArenaPoint",
                 BindingFlags.Instance | BindingFlags.NonPublic) != null,
                 "Mouse aiming must follow the current pointer position.");

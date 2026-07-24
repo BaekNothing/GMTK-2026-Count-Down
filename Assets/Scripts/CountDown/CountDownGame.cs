@@ -38,12 +38,10 @@ namespace CountDown
         private Vector2 aimTouchPosition;
         private Vector2 touchMove;
         private Vector2 touchAim;
-        private Vector2 mouseAimOrigin;
         private Vector2 mouseAimPosition;
         private Vector2 aimDirection = Vector2.up;
         private bool touchAiming;
         private const float TouchStickRadius = 72f;
-        private const float PlayerTurnSpeed = 135f;
         private const float EnemyTurnSpeed = 63f;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -57,8 +55,7 @@ namespace CountDown
         {
             Application.runInBackground = true;
             white = Texture2D.whiteTexture;
-            mouseAimOrigin = mouseAimPosition =
-                new Vector2(Screen.width * .5f, Screen.height * .5f);
+            mouseAimPosition = new Vector2(Screen.width * .5f, Screen.height * .5f);
             BuildWorld();
         }
 
@@ -310,9 +307,7 @@ namespace CountDown
             float speed = player.aiming ? 2f : 5f;
             player.root.position = ClampToArena(player.root.position + move * speed * dt);
 
-            if (Input.GetMouseButtonDown(1))
-                mouseAimOrigin = mouseAimPosition = Input.mousePosition;
-            if (Input.GetMouseButton(1))
+            if (!touchAiming)
                 mouseAimPosition = Input.mousePosition;
 
             Vector3 direction;
@@ -330,9 +325,7 @@ namespace CountDown
             }
             if (direction.sqrMagnitude < .01f)
                 direction = player.gunPivot.forward;
-            Quaternion desired = Quaternion.LookRotation(direction, Vector3.up);
-            player.gunPivot.rotation = Quaternion.RotateTowards(
-                player.gunPivot.rotation, desired, PlayerTurnSpeed * dt);
+            player.gunPivot.rotation = Quaternion.LookRotation(direction, Vector3.up);
 
             if (Input.GetKeyDown(KeyCode.Space) && Time.time >= meleeReadyAt)
                 StartCoroutine(Melee());
@@ -355,8 +348,7 @@ namespace CountDown
             touchAim = Vector2.zero;
             touchAiming = false;
             aimDirection = Vector2.up;
-            mouseAimOrigin = mouseAimPosition =
-                new Vector2(Screen.width * .5f, Screen.height * .5f);
+            mouseAimPosition = new Vector2(Screen.width * .5f, Screen.height * .5f);
             BuildWorld();
         }
 
