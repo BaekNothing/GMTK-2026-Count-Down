@@ -10,8 +10,8 @@ Optional replacement assets are loaded from these `Resources` paths:
 - `CountDown/Materials/Gun`
 - `CountDown/Materials/Floor`
 - `CountDown/Materials/MuzzleFlash`
-- `CountDown/Sprites/PlayerDefault`
-- `CountDown/Sprites/EnemyDefault`
+- `CountDown/Sprites/PlayerSheet` (4 x 5 frames, 128 px per frame)
+- `CountDown/Sprites/EnemySheet` (4 x 3 frames, 128 px per frame)
 - `CountDown/Audio/Click`
 - `CountDown/Audio/Warning`
 - `CountDown/Audio/Gunshot`
@@ -21,9 +21,9 @@ Optional replacement assets are loaded from these `Resources` paths:
 - `CountDown/Audio/Win`
 - `CountDown/Audio/Lose`
 
-Material and audio replacements require no code changes. Sprite replacements
-should be imported as Sprite (2D and UI); their height is normalized
-automatically.
+Material and audio replacements require no code changes. Repaint the existing
+sprite guide sheets in place; their preconfigured named slices drive the runtime
+sprite-swap animation. See `Resources/CountDown/Sprites/SPRITE_GUIDE.md`.
 
 Desktop controls: WASD move, use the mouse to choose a facing direction, hold
 right mouse to aim and advance the countdown, R restart after a result, and

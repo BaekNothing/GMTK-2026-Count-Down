@@ -84,3 +84,5 @@ The distance from each initial touch point controls stick strength.
 - Made the upper-right build version independent of browser-installed fonts.
 - Forced the arena floor behind all gameplay objects in WebGL.
 - Fixed fighters appearing buried in or hidden by the floor.
+- Added lightweight sprite-swap animation sheets for player idle, movement,
+  death, melee, melee recovery, and enemy idle, movement, and death states.

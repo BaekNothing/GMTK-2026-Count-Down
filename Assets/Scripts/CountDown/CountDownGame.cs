@@ -53,6 +53,7 @@ namespace CountDown
         private const float PlayerMeleeRecovery = 1.5f;
         private const float PlayerMovementLockedBrightness = .58f;
         private const float CameraDistanceMultiplier = 1.15f;
+        private const float SpriteFramesPerSecond = 8f;
 
         private enum InputMode
         {
@@ -260,17 +261,18 @@ namespace CountDown
                 "Materials/" + resourcePrefix, color);
             Destroy(body.GetComponent<Collider>());
 
-            var sprite = Resources.Load<Sprite>("CountDown/Sprites/" + resourcePrefix + "Default");
-            if (sprite != null)
+            Sprite[] sprites = Resources.LoadAll<Sprite>(
+                "CountDown/Sprites/" + resourcePrefix + "Sheet");
+            if (sprites.Length > 0)
             {
                 body.SetActive(false);
                 var spriteObject = NewObject(resourcePrefix + " Sprite");
                 spriteObject.transform.SetParent(root.transform);
-                spriteObject.transform.localPosition = Vector3.up * .88f;
+                spriteObject.transform.localPosition = Vector3.zero;
                 var sr = spriteObject.AddComponent<SpriteRenderer>();
-                sr.sprite = sprite;
+                sr.sprite = FindSprite(sprites, resourcePrefix + "_Idle_0");
                 sr.color = Color.white;
-                float height = Mathf.Max(.01f, sprite.bounds.size.y);
+                float height = Mathf.Max(.01f, sr.sprite.bounds.size.y);
                 spriteObject.transform.localScale = Vector3.one * (1.72f / height);
                 body = spriteObject;
             }
@@ -322,11 +324,28 @@ namespace CountDown
             };
             fighter.bodyRenderer = body.GetComponent<Renderer>();
             fighter.baseBodyColor = fighter.bodyRenderer.material.color;
+            fighter.spriteRenderer = body.GetComponent<SpriteRenderer>();
+            if (fighter.spriteRenderer != null)
+            {
+                fighter.spriteFrames = new Dictionary<string, Sprite>();
+                for (int i = 0; i < sprites.Length; i++)
+                    fighter.spriteFrames[sprites[i].name] = sprites[i];
+                fighter.animationState = "Idle";
+                fighter.animationStartedAt = Time.time;
+            }
             if (isPlayer)
                 CreateMeleeRangeIndicator(fighter);
             else
                 CreateEnemyFireWarning(fighter);
             return fighter;
+        }
+
+        private static Sprite FindSprite(Sprite[] sprites, string name)
+        {
+            for (int i = 0; i < sprites.Length; i++)
+                if (sprites[i].name == name)
+                    return sprites[i];
+            return sprites[0];
         }
 
         private void CreateMeleeRangeIndicator(Fighter fighter)
@@ -1053,6 +1072,8 @@ namespace CountDown
                 if (!enemies[i].dead && IsInMeleeRange(enemies[i]))
                     targets.Add(enemies[i]);
             player.stunnedUntil = Time.time + PlayerMeleeRecovery;
+            player.meleeAttackUntil = Time.time + .26f;
+            player.meleeRecoverUntil = player.stunnedUntil;
             Vector3 original = player.gunPivot.localEulerAngles;
             float elapsed = 0f;
             while (elapsed < .14f)
@@ -1200,7 +1221,7 @@ namespace CountDown
                 (fighter.root.position - fighter.lastPosition) / Mathf.Max(dt, .001f);
             fighter.lastPosition = fighter.root.position;
 
-            Quaternion targetRotation = fighter.dead
+            Quaternion targetRotation = fighter.dead && fighter.spriteRenderer == null
                 ? Quaternion.Euler(78f, 0f, fighter.isPlayer ? -8f : 8f)
                 : Quaternion.Euler(0f, 0f, Mathf.Clamp(-lean.x * 2.2f, -8f, 8f));
             fighter.body.localRotation = Quaternion.Slerp(
@@ -1225,9 +1246,49 @@ namespace CountDown
             }
             if (!fighter.dead)
                 fighter.body.localPosition = new Vector3(0f,
-                    .88f + Mathf.Sin(Time.time * 7f) * Mathf.Min(lean.magnitude * .006f, .035f), 0f);
+                    (fighter.spriteRenderer == null ? .88f : 0f) +
+                    Mathf.Sin(Time.time * 7f) * Mathf.Min(lean.magnitude * .006f, .035f), 0f);
+            UpdateSpriteAnimation(fighter, lean.magnitude);
             if (fighter.isPlayer)
                 UpdateMeleeRangeIndicator(fighter);
+        }
+
+        private void UpdateSpriteAnimation(Fighter fighter, float movementSpeed)
+        {
+            if (fighter.spriteRenderer == null || fighter.spriteFrames == null) return;
+
+            string state;
+            bool loop = true;
+            if (fighter.dead)
+            {
+                state = "Death";
+                loop = false;
+            }
+            else if (fighter.isPlayer && Time.time < fighter.meleeAttackUntil)
+                state = "Melee";
+            else if (fighter.isPlayer && Time.time < fighter.meleeRecoverUntil)
+                state = "MeleeRecover";
+            else
+                state = movementSpeed > .08f ? "Move" : "Idle";
+
+            if (fighter.animationState != state)
+            {
+                fighter.animationState = state;
+                fighter.animationStartedAt = Time.time;
+            }
+
+            int elapsedFrame = Mathf.FloorToInt(
+                (Time.time - fighter.animationStartedAt) * SpriteFramesPerSecond);
+            int frame = loop ? elapsedFrame % 4 : Mathf.Min(elapsedFrame, 3);
+            string prefix = fighter.isPlayer ? "Player" : "Enemy";
+            Sprite sprite;
+            if (fighter.spriteFrames.TryGetValue(
+                prefix + "_" + state + "_" + frame, out sprite))
+                fighter.spriteRenderer.sprite = sprite;
+
+            Vector3 forward = fighter.gunPivot.forward;
+            if (Mathf.Abs(forward.x) > .08f)
+                fighter.spriteRenderer.flipX = forward.x < 0f;
         }
 
         private void UpdateMeleeRangeIndicator(Fighter fighter)
@@ -1652,6 +1713,8 @@ namespace CountDown
             public LineRenderer meleeRangeRing;
             public LineRenderer meleeCooldownRing;
             public Renderer bodyRenderer;
+            public SpriteRenderer spriteRenderer;
+            public Dictionary<string, Sprite> spriteFrames;
             public Color baseBodyColor;
             public GameObject fireWarning;
             public Fighter opponent;
@@ -1673,6 +1736,10 @@ namespace CountDown
             public float closeDetectedAt;
             public float pulse;
             public float hitFlash;
+            public string animationState;
+            public float animationStartedAt;
+            public float meleeAttackUntil;
+            public float meleeRecoverUntil;
             public Vector3 lastPosition;
             public int countMin = 3;
             public int countMax = 7;
