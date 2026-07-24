@@ -22,6 +22,14 @@ namespace CountDown
         private const float ProjectileSpeed = 9f;
         private const float ProjectileRadius = .16f;
         private const float ProjectileLifetime = 4f;
+        private const float GamepadDeadzone = .2f;
+
+        private enum InputMode
+        {
+            Mouse,
+            Touch,
+            Gamepad
+        }
 
         private Fighter player;
         private Fighter enemy;
@@ -49,6 +57,7 @@ namespace CountDown
         private Vector2 mouseAimPosition;
         private Vector2 aimDirection = Vector2.up;
         private bool touchAiming;
+        private InputMode inputMode = InputMode.Mouse;
         private const float TouchStickRadius = 72f;
         private const float EnemyTurnSpeed = 63f;
 
@@ -275,6 +284,7 @@ namespace CountDown
 
         private void Update()
         {
+            UpdateInputMode();
             UpdateTouchControls();
 
             if (finished)
@@ -282,6 +292,8 @@ namespace CountDown
                 if (Input.GetKeyDown(KeyCode.R))
                     RestartGame();
                 if (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began)
+                    RestartGame();
+                if (Input.GetKeyDown(KeyCode.JoystickButton0))
                     RestartGame();
                 if (Input.GetKeyDown(KeyCode.Escape))
                     Quit();
@@ -310,15 +322,26 @@ namespace CountDown
                 return;
             }
 
+            Vector2 gamepadMove = ReadGamepadStick(
+                "Gamepad Left X", "Gamepad Left Y");
+            Vector2 gamepadAim = ReadGamepadStick(
+                "Gamepad Right X", "Gamepad Right Y");
+            bool gamepadAiming = inputMode == InputMode.Gamepad &&
+                Input.GetKey(KeyCode.JoystickButton7);
+
             bool wasAiming = player.aiming;
-            bool wantsToAim = touchAiming || Input.GetMouseButton(1);
+            bool wantsToAim = inputMode == InputMode.Touch ? touchAiming :
+                inputMode == InputMode.Gamepad ? gamepadAiming :
+                Input.GetMouseButton(1);
             player.aiming = wantsToAim;
             if (wasAiming && !wantsToAim)
                 emergencyDodgeUntil = Time.time + EmergencyDodgeDuration;
 
-            Vector3 move = new Vector3(Input.GetAxisRaw("Horizontal"), 0f,
-                Input.GetAxisRaw("Vertical"));
-            if (touchMove.sqrMagnitude > move.sqrMagnitude)
+            Vector3 move = inputMode == InputMode.Gamepad
+                ? new Vector3(gamepadMove.x, 0f, gamepadMove.y)
+                : new Vector3(Input.GetAxisRaw("Horizontal"), 0f,
+                    Input.GetAxisRaw("Vertical"));
+            if (inputMode == InputMode.Touch)
                 move = new Vector3(touchMove.x, 0f, touchMove.y);
             move = Vector3.ClampMagnitude(move, 1f);
             float speed = player.aiming ? AimMoveSpeed : NormalMoveSpeed;
@@ -326,14 +349,20 @@ namespace CountDown
                 speed *= EmergencyDodgeMultiplier;
             player.root.position = ClampToArena(player.root.position + move * speed * dt);
 
-            if (!touchAiming)
+            if (inputMode == InputMode.Mouse)
                 mouseAimPosition = Input.mousePosition;
 
             Vector3 direction;
-            if (touchAiming)
+            if (inputMode == InputMode.Touch)
             {
                 if (touchAim.sqrMagnitude > .01f)
                     aimDirection = touchAim.normalized;
+                direction = new Vector3(aimDirection.x, 0f, aimDirection.y);
+            }
+            else if (inputMode == InputMode.Gamepad)
+            {
+                if (gamepadAim.sqrMagnitude > GamepadDeadzone * GamepadDeadzone)
+                    aimDirection = gamepadAim.normalized;
                 direction = new Vector3(aimDirection.x, 0f, aimDirection.y);
             }
             else
@@ -346,8 +375,53 @@ namespace CountDown
                 direction = player.gunPivot.forward;
             player.gunPivot.rotation = Quaternion.LookRotation(direction, Vector3.up);
 
-            if (Input.GetKeyDown(KeyCode.Space) && Time.time >= meleeReadyAt)
+            bool meleePressed = Input.GetKeyDown(KeyCode.Space) ||
+                (inputMode == InputMode.Gamepad &&
+                 Input.GetKeyDown(KeyCode.JoystickButton4));
+            if (meleePressed && Time.time >= meleeReadyAt)
                 StartCoroutine(Melee());
+        }
+
+        private void UpdateInputMode()
+        {
+            if (Input.touchCount > 0)
+            {
+                inputMode = InputMode.Touch;
+                return;
+            }
+
+            Vector2 leftStick = ReadGamepadStick(
+                "Gamepad Left X", "Gamepad Left Y");
+            Vector2 rightStick = ReadGamepadStick(
+                "Gamepad Right X", "Gamepad Right Y");
+            bool gamepadActive = leftStick.sqrMagnitude >
+                    GamepadDeadzone * GamepadDeadzone ||
+                rightStick.sqrMagnitude > GamepadDeadzone * GamepadDeadzone ||
+                Input.GetKey(KeyCode.JoystickButton7) ||
+                Input.GetKey(KeyCode.JoystickButton4);
+            if (gamepadActive)
+            {
+                inputMode = InputMode.Gamepad;
+                return;
+            }
+
+            bool mouseOrKeyboardActive =
+                Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1) ||
+                Mathf.Abs(Input.GetAxisRaw("Mouse X")) > .01f ||
+                Mathf.Abs(Input.GetAxisRaw("Mouse Y")) > .01f ||
+                Mathf.Abs(Input.GetAxisRaw("Horizontal")) > .01f ||
+                Mathf.Abs(Input.GetAxisRaw("Vertical")) > .01f ||
+                Input.GetKeyDown(KeyCode.Space);
+            if (mouseOrKeyboardActive)
+                inputMode = InputMode.Mouse;
+        }
+
+        private static Vector2 ReadGamepadStick(string horizontal, string vertical)
+        {
+            Vector2 value = new Vector2(
+                Input.GetAxisRaw(horizontal), Input.GetAxisRaw(vertical));
+            return value.sqrMagnitude < GamepadDeadzone * GamepadDeadzone
+                ? Vector2.zero : Vector2.ClampMagnitude(value, 1f);
         }
 
         private void RestartGame()
@@ -367,6 +441,7 @@ namespace CountDown
             touchMove = Vector2.zero;
             touchAim = Vector2.zero;
             touchAiming = false;
+            inputMode = InputMode.Mouse;
             aimDirection = Vector2.up;
             mouseAimPosition = new Vector2(Screen.width * .5f, Screen.height * .5f);
             BuildWorld();
@@ -784,7 +859,7 @@ namespace CountDown
             DrawAimState();
             DrawTouchControls();
             GUI.Label(new Rect(0f, Screen.height - 30f, Screen.width, 24f),
-                "WASD MOVE   •   HOLD RMB AIM   •   SPACE BASH   •   ESC QUIT", helpStyle);
+                InputHelpText(), helpStyle);
 
             if (finished)
             {
@@ -795,7 +870,9 @@ namespace CountDown
                 GUI.Label(new Rect(0f, Screen.height * .32f, Screen.width,
                     Screen.height * .16f), result, titleStyle);
                 GUI.Label(new Rect(0f, Screen.height * .5f, Screen.width, 40f),
-                    Input.touchSupported ? "TAP TO RESTART" : "R TO RESTART", labelStyle);
+                    inputMode == InputMode.Touch ? "TAP TO RESTART" :
+                    inputMode == InputMode.Gamepad ? "A TO RESTART" :
+                    "R TO RESTART", labelStyle);
             }
 
             DrawBuildVersion();
@@ -883,22 +960,34 @@ namespace CountDown
 
         private void DrawAimState()
         {
-            Rect badge = new Rect((Screen.width - 150f) * .5f, 82f, 150f, 34f);
+            Rect badge = new Rect((Screen.width - 220f) * .5f, 82f, 220f, 34f);
             DrawPanel(badge, player.aiming
                 ? new Color(.08f, .72f, .38f, .92f)
                 : new Color(.1f, .11f, .12f, .72f));
-            GUI.Label(badge, player.aiming ? "AIMING" : "MOVE MODE", aimStyle);
+            string mode = inputMode == InputMode.Touch ? "TOUCH" :
+                inputMode == InputMode.Gamepad ? "GAMEPAD" : "CLICK";
+            GUI.Label(badge, mode + " • " +
+                (player.aiming ? "AIMING" : "MOVE MODE"), aimStyle);
         }
 
         private void DrawTouchControls()
         {
-            if (!Input.touchSupported && Input.touchCount == 0) return;
+            if (inputMode != InputMode.Touch) return;
             DrawStick(moveTouchId >= 0 ? moveTouchOrigin : new Vector2(92f, 100f),
                 moveTouchId >= 0 ? moveTouchPosition : new Vector2(92f, 100f), "MOVE");
             DrawStick(aimTouchId >= 0 ? aimTouchOrigin :
                     new Vector2(Screen.width - 92f, 100f),
                 aimTouchId >= 0 ? aimTouchPosition :
                     new Vector2(Screen.width - 92f, 100f), "AIM");
+        }
+
+        private string InputHelpText()
+        {
+            if (inputMode == InputMode.Touch)
+                return "LEFT TOUCH MOVE   •   RIGHT TOUCH AIM";
+            if (inputMode == InputMode.Gamepad)
+                return "LEFT STICK MOVE   •   RIGHT STICK AIM   •   RT HOLD AIM   •   LB BASH";
+            return "WASD MOVE   •   HOLD RMB AIM   •   SPACE BASH   •   ESC QUIT";
         }
 
         private void DrawStick(Vector2 origin, Vector2 position, string label)
@@ -958,8 +1047,9 @@ namespace CountDown
 
         private void DrawCrosshair()
         {
+            if (inputMode == InputMode.Gamepad) return;
             Vector2 mouse;
-            if (touchAiming)
+            if (inputMode == InputMode.Touch)
                 mouse = new Vector2(aimTouchPosition.x, Screen.height - aimTouchPosition.y);
             else
                 mouse = new Vector2(mouseAimPosition.x, Screen.height - mouseAimPosition.y);

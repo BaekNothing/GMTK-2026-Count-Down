@@ -20,8 +20,17 @@ out of the enemy's line of fire. Each fighter has three health points.
 
 The distance from each initial touch point controls stick strength.
 
+## Gamepad controls
+
+- Left stick: Move
+- Right stick: Aim direction
+- Hold right trigger: Aim and advance the countdown
+- Left bumper: Bash at close range
+
 ## Latest update
 
+- Added automatic click, touch, and gamepad input-mode switching.
+- Added dual-stick gamepad controls with right-trigger aim and left-bumper bash.
 - Replaced instant hitscan shots with visible, dodgeable projectiles.
 - Removed Unity branding from the startup splash and WebGL loading page.
 - Expanded the arena to twice its previous width and depth.

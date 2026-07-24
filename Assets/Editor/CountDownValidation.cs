@@ -46,6 +46,17 @@ public static class CountDownValidation
             Require(typeof(CountDownGame).GetMethod("UpdateTouchControls",
                 BindingFlags.Instance | BindingFlags.NonPublic) != null,
                 "Mobile touch controls are required.");
+            Require(typeof(CountDownGame).GetMethod("UpdateInputMode",
+                BindingFlags.Instance | BindingFlags.NonPublic) != null,
+                "Mouse, touch, and gamepad input must switch automatically.");
+            Require(typeof(CountDownGame).GetMethod("ReadGamepadStick",
+                BindingFlags.Static | BindingFlags.NonPublic) != null,
+                "Dedicated gamepad stick input is required.");
+            Require(HasInputAxis("Gamepad Left X") &&
+                HasInputAxis("Gamepad Left Y") &&
+                HasInputAxis("Gamepad Right X") &&
+                HasInputAxis("Gamepad Right Y"),
+                "Both gamepad sticks must have dedicated legacy input axes.");
             Require(HasConstant("EnemyTurnSpeed", 63f),
                 "Enemy turn speed must be 30% slower than baseline.");
             Require(HasConstant("ArenaWidth", 24f) &&
@@ -120,5 +131,21 @@ public static class CountDownValidation
             name, BindingFlags.Static | BindingFlags.NonPublic);
         return field != null && Mathf.Approximately(
             (float)field.GetRawConstantValue(), expected);
+    }
+
+    private static bool HasInputAxis(string name)
+    {
+        UnityEngine.Object[] assets =
+            AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/InputManager.asset");
+        if (assets.Length == 0) return false;
+        var inputManager = new SerializedObject(assets[0]);
+        SerializedProperty axes = inputManager.FindProperty("m_Axes");
+        for (int i = 0; i < axes.arraySize; i++)
+        {
+            SerializedProperty axis = axes.GetArrayElementAtIndex(i);
+            if (axis.FindPropertyRelative("m_Name").stringValue == name)
+                return true;
+        }
+        return false;
     }
 }
