@@ -1,7 +1,8 @@
 # COUNT DOWN
 
-Keep your aim on the opponent until their countdown reaches zero, while moving
-out of the enemy's line of fire. Each fighter has three health points.
+Keep aiming until your countdown reaches zero, while moving out of the enemy's
+line of fire. Every fighter's countdown advances while they aim, even when the
+laser is not touching an opponent. Each fighter has three health points.
 The player rolls a countdown from 3 to 7. Stage-one enemies roll from 10 to 15,
 with that range dropping toward 3 to 7 as stages rise.
 Stage one begins with two enemies. Each cleared stage adds one more enemy and
@@ -33,6 +34,8 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- Player and enemy countdowns now advance whenever they aim, even if the laser
+  is not currently touching an opponent.
 - During the final 0.3 seconds before firing, aim assist expands to 120 degrees
   and prioritizes the current lock to prevent last-moment stray shots.
 - The player now dims during the 1.5-second post-melee movement lock.

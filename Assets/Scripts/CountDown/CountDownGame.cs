@@ -963,9 +963,7 @@ namespace CountDown
                 return;
             }
 
-            bool canCount = fighter.aiming &&
-                (fighter.hasTarget || Time.time <= fighter.aimGraceUntil) &&
-                Time.time >= fighter.stunnedUntil;
+            bool canCount = fighter.aiming && Time.time >= fighter.stunnedUntil;
             if (canCount)
             {
                 fighter.countTimer += dt;
