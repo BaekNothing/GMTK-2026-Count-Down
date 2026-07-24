@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace CountDown
@@ -32,10 +33,12 @@ namespace CountDown
         }
 
         private Fighter player;
-        private Fighter enemy;
+        private readonly List<Fighter> enemies = new List<Fighter>();
         private Camera gameCamera;
         private AudioSource audioSource;
         private bool finished;
+        private bool stageTransitioning;
+        private int stage = 1;
         private float meleeReadyAt;
         private float emergencyDodgeUntil;
         private float shake;
@@ -105,18 +108,43 @@ namespace CountDown
             player = CreateFighter("PLAYER", true,
                 new Vector3(0f, FighterGroundHeight, -2.75f),
                 new Color(.12f, .72f, 1f), "Player");
-            enemy = CreateFighter("TARGET", false,
-                new Vector3(0f, FighterGroundHeight, 2.75f),
-                new Color(1f, .24f, .18f), "Enemy");
-            player.opponent = enemy;
-            enemy.opponent = player;
             player.ResetCount();
-            enemy.ResetCount();
+            StartStage();
 
             audioSource = NewObject("Audio").AddComponent<AudioSource>();
             audioSource.spatialBlend = 0f;
             meleeReadyAt = Time.time;
             UpdateCamera(true);
+        }
+
+        private void StartStage()
+        {
+            enemies.Clear();
+            for (int i = 0; i < stage; i++)
+            {
+                Vector3 position = EnemySpawnPosition(i, stage);
+                string name = i == 0 ? "TARGET" : "TARGET " + (i + 1);
+                Fighter spawned = CreateFighter(name, false,
+                    position, new Color(1f, .24f, .18f), "Enemy");
+                spawned.opponent = player;
+                spawned.ResetCount();
+                enemies.Add(spawned);
+            }
+            player.opponent = null;
+            player.hasTarget = false;
+            stageTransitioning = false;
+        }
+
+        private static Vector3 EnemySpawnPosition(int index, int count)
+        {
+            int columns = Mathf.Min(7, Mathf.CeilToInt(Mathf.Sqrt(count * 1.5f)));
+            int rows = Mathf.CeilToInt(count / (float)columns);
+            int column = index % columns;
+            int row = index / columns;
+            float x = (column - (columns - 1) * .5f) * 2.3f;
+            float rowSpacing = Mathf.Min(2.3f, 9f / Mathf.Max(1, rows - 1));
+            float z = 2f + (row - (rows - 1) * .5f) * rowSpacing;
+            return new Vector3(x, FighterGroundHeight, z);
         }
 
         private void CreateArena()
@@ -305,11 +333,16 @@ namespace CountDown
 
             float dt = Mathf.Min(Time.deltaTime, .05f);
             UpdatePlayer(dt);
-            UpdateEnemy(dt);
+            for (int i = 0; i < enemies.Count; i++)
+                if (!enemies[i].dead)
+                    UpdateEnemy(enemies[i], dt);
             UpdateWeapon(player, dt);
-            UpdateWeapon(enemy, dt);
+            for (int i = 0; i < enemies.Count; i++)
+                if (!enemies[i].dead)
+                    UpdateWeapon(enemies[i], dt);
             UpdatePresentation(player, dt);
-            UpdatePresentation(enemy, dt);
+            for (int i = 0; i < enemies.Count; i++)
+                UpdatePresentation(enemies[i], dt);
             UpdateCamera(false);
             shake = Mathf.MoveTowards(shake, 0f, dt * 2.8f);
         }
@@ -431,10 +464,12 @@ namespace CountDown
                 Destroy(transform.GetChild(i).gameObject);
 
             player = null;
-            enemy = null;
+            enemies.Clear();
             gameCamera = null;
             audioSource = null;
             finished = false;
+            stageTransitioning = false;
+            stage = 1;
             shake = 0f;
             emergencyDodgeUntil = 0f;
             moveTouchId = aimTouchId = -1;
@@ -497,7 +532,7 @@ namespace CountDown
             }
         }
 
-        private void UpdateEnemy(float dt)
+        private void UpdateEnemy(Fighter enemy, float dt)
         {
             if (Time.time < enemy.stunnedUntil)
             {
@@ -512,12 +547,13 @@ namespace CountDown
             {
                 if (enemy.closeDetectedAt <= 0f) enemy.closeDetectedAt = Time.time;
                 if (Time.time - enemy.closeDetectedAt >= .3f)
-                    MoveEnemy(-toPlayer.normalized, dt);
+                    MoveEnemy(enemy, -toPlayer.normalized, dt);
             }
             else
             {
                 enemy.closeDetectedAt = 0f;
-                bool danger = player.count <= 1 && player.aiming && player.hasTarget;
+                bool danger = player.count <= 1 && player.aiming &&
+                    player.hasTarget && player.opponent == enemy;
                 if (danger && Time.time >= enemy.nextDecisionAt)
                 {
                     enemy.evading = Random.value < .7f;
@@ -528,13 +564,15 @@ namespace CountDown
                 if (enemy.evading && Time.time < enemy.nextDecisionAt)
                 {
                     Vector3 side = Vector3.Cross(Vector3.up, toPlayer.normalized) * enemy.evadeDirection;
-                    MoveEnemy(side, dt);
+                    MoveEnemy(enemy, side, dt);
                 }
                 else
                 {
                     enemy.evading = false;
-                    if (distance > 5.2f) MoveEnemy(toPlayer.normalized, dt * .45f);
-                    else if (distance < 3.4f) MoveEnemy(-toPlayer.normalized, dt * .4f);
+                    if (distance > 5.2f)
+                        MoveEnemy(enemy, toPlayer.normalized, dt * .45f);
+                    else if (distance < 3.4f)
+                        MoveEnemy(enemy, -toPlayer.normalized, dt * .4f);
                 }
             }
 
@@ -549,7 +587,7 @@ namespace CountDown
             enemy.aiming = true;
         }
 
-        private void MoveEnemy(Vector3 direction, float dt)
+        private void MoveEnemy(Fighter enemy, Vector3 direction, float dt)
         {
             direction.y = 0f;
             enemy.root.position = ClampToArena(enemy.root.position +
@@ -563,7 +601,11 @@ namespace CountDown
                 fighter.muzzle.forward, out hit, 30f);
             Vector3 end = hitSomething ? hit.point :
                 fighter.muzzle.position + fighter.muzzle.forward * 30f;
-            fighter.hasTarget = hitSomething &&
+            if (fighter.isPlayer)
+                fighter.opponent = hitSomething
+                    ? FindAliveEnemy(hit.collider.transform) : null;
+            fighter.hasTarget = hitSomething && fighter.opponent != null &&
+                !fighter.opponent.dead &&
                 hit.collider.transform.IsChildOf(fighter.opponent.root);
 
             fighter.laser.SetPosition(0, fighter.muzzle.position);
@@ -633,7 +675,7 @@ namespace CountDown
                 UnityEngine.Rendering.ShadowCastingMode.Off;
 
             float expiresAt = Time.time + ProjectileLifetime;
-            while (!finished && Time.time < expiresAt)
+            while (!finished && !stageTransitioning && Time.time < expiresAt)
             {
                 float distance = ProjectileSpeed * Mathf.Min(Time.deltaTime, .05f);
                 RaycastHit[] hits = Physics.SphereCastAll(position,
@@ -642,9 +684,13 @@ namespace CountDown
                 bool connected = false;
                 for (int i = 0; i < hits.Length; i++)
                 {
-                    if (!hits[i].collider.transform.IsChildOf(source.opponent.root))
-                        continue;
+                    Fighter hitTarget = source.isPlayer
+                        ? FindAliveEnemy(hits[i].collider.transform)
+                        : hits[i].collider.transform.IsChildOf(player.root)
+                            ? player : null;
+                    if (hitTarget == null || hitTarget.dead) continue;
                     connected = true;
+                    source.opponent = hitTarget;
                     break;
                 }
 
@@ -665,6 +711,15 @@ namespace CountDown
 
             Destroy(projectile);
             Destroy(trailObject, trail.time);
+        }
+
+        private Fighter FindAliveEnemy(Transform hitTransform)
+        {
+            for (int i = 0; i < enemies.Count; i++)
+                if (!enemies[i].dead &&
+                    hitTransform.IsChildOf(enemies[i].root))
+                    return enemies[i];
+            return null;
         }
 
         private IEnumerator MuzzleFlash(Fighter fighter)
@@ -696,13 +751,15 @@ namespace CountDown
                 yield return null;
             }
 
-            float distance = Vector3.Distance(player.root.position, enemy.root.position);
-            if (distance <= 1.8f && enemy.health > 0)
+            Fighter meleeTarget = ClosestAliveEnemy();
+            float distance = meleeTarget == null ? float.MaxValue :
+                Vector3.Distance(player.root.position, meleeTarget.root.position);
+            if (distance <= 1.8f)
             {
-                enemy.stunnedUntil = Time.time + .7f;
-                enemy.aiming = false;
-                enemy.ResetCount();
-                Damage(enemy, 1, player);
+                meleeTarget.stunnedUntil = Time.time + .7f;
+                meleeTarget.aiming = false;
+                meleeTarget.ResetCount();
+                Damage(meleeTarget, 1, player);
                 Play("Audio/MeleeHit", 92f, .1f, .7f);
             }
             else
@@ -715,6 +772,22 @@ namespace CountDown
             player.gunPivot.localEulerAngles = original;
         }
 
+        private Fighter ClosestAliveEnemy()
+        {
+            Fighter closest = null;
+            float closestDistance = float.MaxValue;
+            for (int i = 0; i < enemies.Count; i++)
+            {
+                if (enemies[i].dead) continue;
+                float distance = (enemies[i].root.position -
+                    player.root.position).sqrMagnitude;
+                if (distance >= closestDistance) continue;
+                closestDistance = distance;
+                closest = enemies[i];
+            }
+            return closest;
+        }
+
         private void Damage(Fighter target, int amount, Fighter source)
         {
             if (finished) return;
@@ -724,12 +797,50 @@ namespace CountDown
             Play("Audio/Impact", 72f, .09f, .6f);
             if (target.health <= 0)
             {
-                finished = true;
                 target.dead = true;
-                player.aiming = enemy.aiming = false;
-                Play(target.isPlayer ? "Audio/Lose" : "Audio/Win",
-                    target.isPlayer ? 110f : 440f, .45f, .55f);
+                target.aiming = false;
+                target.laser.enabled = false;
+                Collider targetCollider = target.root.GetComponent<Collider>();
+                if (targetCollider != null) targetCollider.enabled = false;
+                if (target.isPlayer)
+                {
+                    finished = true;
+                    for (int i = 0; i < enemies.Count; i++)
+                        enemies[i].aiming = false;
+                    Play("Audio/Lose", 110f, .45f, .55f);
+                }
+                else if (!stageTransitioning && AllEnemiesDefeated())
+                {
+                    stageTransitioning = true;
+                    player.aiming = false;
+                    StartCoroutine(AdvanceStage());
+                }
             }
+        }
+
+        private bool AllEnemiesDefeated()
+        {
+            for (int i = 0; i < enemies.Count; i++)
+                if (!enemies[i].dead)
+                    return false;
+            return enemies.Count > 0;
+        }
+
+        private IEnumerator AdvanceStage()
+        {
+            Play("Audio/Win", 440f, .45f, .55f);
+            yield return new WaitForSeconds(1.15f);
+            for (int i = 0; i < enemies.Count; i++)
+                if (enemies[i].root != null)
+                    Destroy(enemies[i].root.gameObject);
+            enemies.Clear();
+            stage++;
+            player.health = MaxHealth;
+            player.dead = false;
+            player.ResetCount();
+            player.root.position = new Vector3(
+                0f, FighterGroundHeight, -ArenaDepth * .3f);
+            StartStage();
         }
 
         private void UpdatePresentation(Fighter fighter, float dt)
@@ -848,13 +959,15 @@ namespace CountDown
 
         private void OnGUI()
         {
-            if (player == null || enemy == null) return;
+            if (player == null) return;
             GUI.depth = -100;
             InitStyles();
             DrawTopStatus();
             DrawPlayerStatus();
             DrawWorldCount(player);
-            DrawWorldCount(enemy);
+            for (int i = 0; i < enemies.Count; i++)
+                if (!enemies[i].dead)
+                    DrawWorldCount(enemies[i]);
             DrawCrosshair();
             DrawAimState();
             DrawTouchControls();
@@ -866,13 +979,17 @@ namespace CountDown
                 GUI.color = new Color(0f, 0f, 0f, .72f);
                 GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), white);
                 GUI.color = Color.white;
-                string result = player.health > 0 ? "COUNT DOWN" : "YOU ARE DOWN";
                 GUI.Label(new Rect(0f, Screen.height * .32f, Screen.width,
-                    Screen.height * .16f), result, titleStyle);
+                    Screen.height * .16f), "YOU ARE DOWN", titleStyle);
                 GUI.Label(new Rect(0f, Screen.height * .5f, Screen.width, 40f),
                     inputMode == InputMode.Touch ? "TAP TO RESTART" :
                     inputMode == InputMode.Gamepad ? "A TO RESTART" :
                     "R TO RESTART", labelStyle);
+            }
+            else if (stageTransitioning)
+            {
+                GUI.Label(new Rect(0f, Screen.height * .38f, Screen.width,
+                    Screen.height * .14f), "STAGE CLEAR", titleStyle);
             }
 
             DrawBuildVersion();
@@ -1010,9 +1127,16 @@ namespace CountDown
             float width = Mathf.Min(400f, Screen.width * .42f);
             Rect panel = new Rect((Screen.width - width) * .5f, 16f, width, 58f);
             DrawPanel(panel, new Color(.05f, .06f, .07f, .82f));
-            GUI.Label(new Rect(panel.x, panel.y + 3f, width, 20f), "TARGET", helpStyle);
-            DrawHearts(new Rect(panel.x + 16f, panel.y + 29f, width - 32f, 18f),
-                enemy.health, false);
+            int alive = 0;
+            for (int i = 0; i < enemies.Count; i++)
+                if (!enemies[i].dead) alive++;
+            GUI.Label(new Rect(panel.x, panel.y + 3f, width, 20f),
+                "STAGE " + stage + "   •   ENEMIES " + alive, helpStyle);
+            Fighter target = player.opponent != null && !player.opponent.dead
+                ? player.opponent : ClosestAliveEnemy();
+            if (target != null)
+                DrawHearts(new Rect(panel.x + 16f, panel.y + 29f,
+                    width - 32f, 18f), target.health, false);
         }
 
         private void DrawPlayerStatus()
@@ -1112,7 +1236,7 @@ namespace CountDown
 
             public void ResetCount()
             {
-                count = Random.Range(3, 8);
+                count = isPlayer ? Random.Range(3, 8) : Random.Range(5, 16);
                 countTimer = 0f;
                 pulse = 1f;
             }

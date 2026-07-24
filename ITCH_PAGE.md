@@ -2,6 +2,8 @@
 
 Keep your aim on the opponent until their countdown reaches zero, while moving
 out of the enemy's line of fire. Each fighter has three health points.
+The player rolls a countdown from 3 to 7, while enemies roll from 5 to 15.
+Each cleared stage adds one more enemy and restores the player's health.
 
 ## Desktop controls
 
@@ -29,6 +31,8 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- Added escalating stages that add one enemy after every clear.
+- Split countdown ranges: player 3-7, enemies 5-15.
 - Added automatic click, touch, and gamepad input-mode switching.
 - Added dual-stick gamepad controls with right-trigger aim and left-bumper bash.
 - Replaced instant hitscan shots with visible, dodgeable projectiles.

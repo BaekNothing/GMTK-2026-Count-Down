@@ -52,6 +52,14 @@ public static class CountDownValidation
             Require(typeof(CountDownGame).GetMethod("ReadGamepadStick",
                 BindingFlags.Static | BindingFlags.NonPublic) != null,
                 "Dedicated gamepad stick input is required.");
+            Require(typeof(CountDownGame).GetMethod("StartStage",
+                BindingFlags.Instance | BindingFlags.NonPublic) != null &&
+                typeof(CountDownGame).GetMethod("AdvanceStage",
+                BindingFlags.Instance | BindingFlags.NonPublic) != null,
+                "Clearing a stage must spawn one additional enemy.");
+            Require(typeof(CountDownGame).GetField("enemies",
+                BindingFlags.Instance | BindingFlags.NonPublic) != null,
+                "Stage combat must support multiple enemies.");
             Require(HasInputAxis("Gamepad Left X") &&
                 HasInputAxis("Gamepad Left Y") &&
                 HasInputAxis("Gamepad Right X") &&
