@@ -112,3 +112,5 @@ InitTestScene*.unity*
 Thumbs.db
 Desktop.ini
 .agents/
+.tools/
+.itch-target

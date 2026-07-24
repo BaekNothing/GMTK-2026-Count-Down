@@ -1,39 +1,57 @@
-# GitHub Actions → itch.io 배포 설정
+# LLM 로컬 빌드 → GitHub → itch.io 배포
 
-`main` 브랜치에 push하거나 Actions 화면에서 수동 실행하면 WebGL을 빌드한
-뒤 itch.io의 `webgl` 채널에 게시합니다.
+이 프로젝트는 GitHub Actions에서 Unity를 실행하지 않습니다. 프로젝트를
+수정한 LLM 에이전트가 현재 PC에 설치된 Unity 6000.3.8f1과 활성화된
+Unity Personal 라이선스를 사용해 직접 검증하고 배포합니다.
 
-## 1. itch.io 페이지 준비
+## 최초 1회 준비
 
-1. itch.io에서 새 프로젝트를 만듭니다.
-2. 프로젝트 종류는 `HTML`로 설정합니다.
-3. 프로젝트 URL의 `사용자명/게임-slug`를 확인합니다.
+1. itch.io에 HTML 프로젝트 페이지를 생성합니다.
+2. itch.io `Account settings → API keys`에서 API 키를 발급합니다.
+3. 사용자 환경변수를 등록합니다.
 
-## 2. GitHub Repository Variables
+PowerShell 예시:
 
-Repository `Settings → Secrets and variables → Actions → Variables`에 다음을
-등록합니다.
+```powershell
+[Environment]::SetEnvironmentVariable(
+    'BUTLER_API_KEY',
+    '발급받은_API_KEY',
+    'User')
 
-- `ITCH_USER`: itch.io 사용자명
-- `ITCH_GAME`: itch.io 게임 URL slug
+[Environment]::SetEnvironmentVariable(
+    'ITCH_TARGET',
+    'itch사용자명/게임-slug:webgl',
+    'User')
+```
 
-## 3. GitHub Repository Secrets
+환경변수를 등록한 후 Codex/터미널을 다시 시작해야 새 값이 반영됩니다.
+API 키는 저장소나 `.env` 파일에 커밋하지 않습니다.
 
-같은 화면의 `Secrets` 탭에 다음을 등록합니다.
+## 배포 명령
 
-- `BUTLER_API_KEY`: itch.io `Account settings → API keys`에서 발급한 키
-- `UNITY_LICENSE`: GameCI 방식으로 활성화한 Unity Personal 라이선스 전문
-- `UNITY_EMAIL`: Unity 계정 이메일
-- `UNITY_PASSWORD`: Unity 계정 비밀번호
+```powershell
+.\Tools\Publish-Itch.ps1
+```
 
-Unity Pro 라이선스를 사용할 경우 워크플로를 `UNITY_SERIAL` 방식으로
-조정해야 합니다. 현재 구성은 Unity Personal 기준입니다.
+스크립트는 다음 작업을 수행합니다.
 
-## 4. 첫 실행
+1. 로컬 Unity로 런타임 조립 검증
+2. WebGL 프로덕션 빌드
+3. `butler`가 없으면 `.tools/butler`에 자동 설치
+4. 생성된 `Builds/WebGL`을 itch.io `webgl` 채널에 업로드
 
-Actions의 `Build and publish WebGL` 워크플로를 수동 실행합니다. 성공하면
-itch.io 프로젝트의 `webgl` 채널에 빌드가 생성됩니다. 이후 `main`에
-push될 때마다 같은 채널이 새 버전으로 갱신됩니다.
+Git 커밋과 푸시는 리소스 범위를 검토해야 하므로 스크립트가 임의로
+`git add -A`하지 않습니다. 대신 루트 `AGENTS.md`가 LLM에게 빌드 성공 후
+의도한 파일만 커밋·푸시하고, 마지막에 이 배포 스크립트를 실행하도록
+요구합니다.
 
-워크플로는 배포 전에 필요한 Secret/Variable을 검사하므로, 누락된 값은
-빌드를 시작하기 전에 오류 메시지로 알려줍니다.
+## 수동 대상 지정
+
+환경변수 대신 한 번만 다른 대상으로 배포할 수 있습니다.
+
+```powershell
+.\Tools\Publish-Itch.ps1 -ItchTarget '사용자명/게임-slug:webgl'
+```
+
+API 키가 없으면 스크립트가 중단됩니다. `butler login`으로 생성한 로컬
+인증 파일이 이미 있는 경우에는 `BUTLER_API_KEY` 없이도 실행할 수 있습니다.
