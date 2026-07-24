@@ -34,6 +34,9 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- Character and fuse sprite animations now play at half speed.
+- Fuse wicks and flames are twice as large. Initial fuse length now matches the
+  starting count, then shrinks smoothly as the countdown advances.
 - Player and enemy countdowns now advance whenever they aim, even if the laser
   is not currently touching an opponent.
 - During the final 0.3 seconds before firing, aim assist expands to 120 degrees

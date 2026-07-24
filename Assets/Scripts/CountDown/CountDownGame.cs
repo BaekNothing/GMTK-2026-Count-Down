@@ -53,9 +53,13 @@ namespace CountDown
         private const float PlayerMeleeRecovery = 1.5f;
         private const float PlayerMovementLockedBrightness = .58f;
         private const float CameraDistanceMultiplier = 1.15f;
-        private const float SpriteFramesPerSecond = 8f;
-        private const int FuseSegmentCount = 6;
+        private const float SpriteFramesPerSecond = 4f;
+        private const int FuseSegmentCount = EnemyStageOneMaxCount;
         private const float FuseLinkLength = .16f;
+        private const float FuseSegmentScale = .56f;
+        private const float FuseFlameScale = .48f;
+        private const float FuseFlameFramesPerSecond = 6f;
+        private const float FuseAlertFramesPerSecond = 5f;
         private const float PreFirePause = .42f;
 
         private enum InputMode
@@ -360,7 +364,7 @@ namespace CountDown
                 renderer.sprite = segmentSprite;
                 renderer.color = Color.Lerp(fighter.accent, new Color(.42f, .25f, .12f), .62f);
                 renderer.sortingOrder = 20;
-                segment.transform.localScale = Vector3.one * .28f;
+                segment.transform.localScale = Vector3.one * FuseSegmentScale;
                 fighter.fuseSegments[i] = renderer;
             }
 
@@ -375,7 +379,7 @@ namespace CountDown
             };
             fighter.fuseFlame.sprite = fighter.fuseFlameFrames[0];
             fighter.fuseFlame.sortingOrder = 22;
-            flame.transform.localScale = Vector3.one * .24f;
+            flame.transform.localScale = Vector3.one * FuseFlameScale;
 
             var alert = NewObject("Fuse Alert");
             alert.transform.SetParent(fighter.root, true);
@@ -1323,13 +1327,13 @@ namespace CountDown
         {
             if (fighter.fuseSegments == null) return;
             bool hidden = fighter.dead;
-            float remaining = fighter.startingCount <= 0 || fighter.firePending
+            float remainingLinks = fighter.startingCount <= 0 || fighter.firePending
                 ? 0f
-                : Mathf.Clamp01((fighter.count - fighter.countTimer) /
-                    fighter.startingCount);
-            int visibleCount = hidden ? 0 :
-                Mathf.Clamp(Mathf.CeilToInt(remaining * FuseSegmentCount),
-                    0, FuseSegmentCount);
+                : Mathf.Clamp(fighter.count - fighter.countTimer,
+                    0f, FuseSegmentCount);
+            float visibleLinks = hidden ? 0f : remainingLinks;
+            int visibleCount = Mathf.Clamp(Mathf.CeilToInt(visibleLinks),
+                0, FuseSegmentCount);
 
             Vector3 cameraRight = gameCamera.transform.right;
             Vector3 cameraUp = gameCamera.transform.up;
@@ -1344,16 +1348,19 @@ namespace CountDown
                 SpriteRenderer segment = fighter.fuseSegments[i];
                 segment.enabled = i < visibleCount;
                 if (!segment.enabled) continue;
+                float linkAmount = Mathf.Clamp01(visibleLinks - i);
 
                 Vector3 current = fighter.fusePositions[i];
                 if (current == Vector3.zero)
-                    current = previous + defaultDirection * FuseLinkLength;
+                    current = previous + defaultDirection *
+                        (FuseLinkLength * linkAmount);
                 Vector3 currentDirection = current - previous;
                 currentDirection = currentDirection.sqrMagnitude > .0001f
                     ? currentDirection.normalized : defaultDirection;
                 Vector3 relaxedDirection = Vector3.Slerp(
                     currentDirection, defaultDirection, Mathf.Clamp01(dt * 3.2f));
-                Vector3 target = previous + relaxedDirection * FuseLinkLength;
+                Vector3 target = previous + relaxedDirection *
+                    (FuseLinkLength * linkAmount);
                 current = Vector3.Lerp(current, target, Mathf.Clamp01(dt * 9f));
                 fighter.fusePositions[i] = current;
 
@@ -1363,13 +1370,17 @@ namespace CountDown
                 segment.transform.position = (previous + current) * .5f;
                 segment.transform.rotation = gameCamera.transform.rotation *
                     Quaternion.Euler(0f, 0f, angle);
+                segment.transform.localScale = new Vector3(
+                    FuseSegmentScale * linkAmount, FuseSegmentScale,
+                    FuseSegmentScale);
                 previous = current;
             }
 
             fighter.fuseFlame.enabled = !hidden && visibleCount > 0;
             if (fighter.fuseFlame.enabled)
             {
-                int flameFrame = Mathf.FloorToInt(Time.time * 12f) % 3;
+                int flameFrame = Mathf.FloorToInt(
+                    Time.time * FuseFlameFramesPerSecond) % 3;
                 fighter.fuseFlame.sprite = fighter.fuseFlameFrames[flameFrame];
                 fighter.fuseFlame.transform.position = previous;
                 fighter.fuseFlame.transform.rotation = gameCamera.transform.rotation;
@@ -1378,7 +1389,8 @@ namespace CountDown
             fighter.fuseAlert.enabled = !hidden && fighter.firePending;
             if (fighter.fuseAlert.enabled)
             {
-                int alertFrame = Mathf.FloorToInt(Time.time * 10f) % 2;
+                int alertFrame = Mathf.FloorToInt(
+                    Time.time * FuseAlertFramesPerSecond) % 2;
                 fighter.fuseAlert.sprite = fighter.fuseAlertFrames[alertFrame];
                 fighter.fuseAlert.transform.position = fighter.muzzle.position +
                     cameraUp * .38f;

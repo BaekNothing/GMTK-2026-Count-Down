@@ -150,6 +150,15 @@ public static class CountDownValidation
                 typeof(CountDownGame).GetMethod("UpdateEnemyFireWarning",
                     BindingFlags.Instance | BindingFlags.NonPublic) != null,
                 "Enemies must stop for their final second and warn 0.5 seconds before firing.");
+            Require(HasConstant("SpriteFramesPerSecond", 4f) &&
+                HasConstant("FuseFlameFramesPerSecond", 6f) &&
+                HasConstant("FuseAlertFramesPerSecond", 5f),
+                "Character and fuse sprite animations must play at half speed.");
+            Require(HasConstant("FuseSegmentScale", .56f) &&
+                HasConstant("FuseFlameScale", .48f),
+                "The fuse wick and flame effects must render at double size.");
+            Require(HasConstant("FuseSegmentCount", 15),
+                "Fuse length must support one wick segment per starting count.");
             Transform playerRoot = Find("PLAYER").transform;
             Transform targetRoot = Find("TARGET").transform;
             Transform playerGun = playerRoot.Find("Gun Pivot");
