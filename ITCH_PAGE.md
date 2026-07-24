@@ -33,6 +33,14 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- Added a ground ring showing the player's melee range and its 15-second
+  cooldown progress.
+- Melee now locks in enemies already in range, includes their body radius, and
+  knocks hit enemies away while they flash.
+- Enemies stop moving during their final one-second firing countdown and show
+  a placeholder warning marker over the muzzle for the final 0.5 seconds.
+- Enemies now dodge only when a player projectile gets close instead of
+  reacting immediately to the player's aim line.
 - Aiming now gently zooms the camera in and darkens the screen edges for
   immediate visual feedback.
 - Added escalating stages that add one enemy after every clear.

@@ -33,9 +33,13 @@ public static class CountDownValidation
             Require(Find("Game Camera") != null, "Game camera was not generated.");
             Require(Find("TARGET 2") != null,
                 "The first stage must begin with two enemies.");
-            Require(UnityEngine.Object.FindObjectsByType<LineRenderer>(
-                FindObjectsSortMode.None).Length == 3,
+            Require(CountObjects("Laser") == 3,
                 "The player and both initial enemies require aiming lasers.");
+            Require(CountObjects("Melee Range") == 1 &&
+                CountObjects("Melee Cooldown") == 1,
+                "The player requires melee range and cooldown ground rings.");
+            Require(CountObjects("Fire Warning Placeholder") == 2,
+                "Each initial enemy requires a muzzle warning placeholder.");
             Require(Find("PLAYER").GetComponent<CapsuleCollider>() != null,
                 "Player body hitbox is required.");
             Require(Find("TARGET").GetComponent<CapsuleCollider>() != null,
@@ -93,9 +97,10 @@ public static class CountDownValidation
                     BindingFlags.Instance | BindingFlags.NonPublic) != null,
                 "Player aim must snap to the nearest overlapping target within 20 degrees.");
             Require(HasConstant("EnemyLineAvoidanceRadius", 1.45f) &&
-                typeof(CountDownGame).GetMethod("MoveEnemy",
+                HasConstant("EnemyProjectileDodgeDistance", 3.2f) &&
+                typeof(CountDownGame).GetMethod("TryGetProjectileEscape",
                     BindingFlags.Instance | BindingFlags.NonPublic) != null,
-                "Enemies must continuously move to escape the player's firing line.");
+                "Enemies must dodge only when a player projectile gets close.");
             Require(HasConstant("FighterSeparation", 1.08f) &&
                 typeof(CountDownGame).GetMethod("ResolveAllFighterOverlaps",
                     BindingFlags.Instance | BindingFlags.NonPublic) != null,
@@ -121,11 +126,18 @@ public static class CountDownValidation
                 "Enemy movement speed must rise and starting counts must fall with stage.");
             Require(HasConstant("MeleeRange", 1.8f) &&
                 HasConstant("MeleeCooldown", 15f) &&
+                HasConstant("HitKnockbackDistance", .42f) &&
                 typeof(CountDownGame).GetMethod("HasEnemyInMeleeRange",
+                    BindingFlags.Instance | BindingFlags.NonPublic) != null &&
+                typeof(CountDownGame).GetMethod("CreateMeleeRangeIndicator",
                     BindingFlags.Instance | BindingFlags.NonPublic) != null &&
                 typeof(CountDownGame).GetMethod("TryAutoMelee",
                     BindingFlags.Instance | BindingFlags.NonPublic) != null,
-                "Melee must auto-trigger in range, hit an area, and use a 15-second cooldown.");
+                "Melee must show its range and cooldown, hit reliably, and knock targets back.");
+            Require(HasConstant("EnemyFireWarningDuration", .5f) &&
+                typeof(CountDownGame).GetMethod("UpdateEnemyFireWarning",
+                    BindingFlags.Instance | BindingFlags.NonPublic) != null,
+                "Enemies must stop for their final second and warn 0.5 seconds before firing.");
             Transform playerRoot = Find("PLAYER").transform;
             Transform targetRoot = Find("TARGET").transform;
             Transform playerGun = playerRoot.Find("Gun Pivot");
@@ -190,6 +202,15 @@ public static class CountDownValidation
             if (candidate.name == name && candidate.scene.IsValid())
                 return candidate;
         return null;
+    }
+
+    private static int CountObjects(string name)
+    {
+        int count = 0;
+        foreach (var candidate in Resources.FindObjectsOfTypeAll<GameObject>())
+            if (candidate.name == name && candidate.scene.IsValid())
+                count++;
+        return count;
     }
 
     private static void Require(bool condition, string message)

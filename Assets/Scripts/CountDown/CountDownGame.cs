@@ -27,6 +27,9 @@ namespace CountDown
         private const float AimAssistDegrees = 20f;
         private const float FighterSeparation = BodyRadius * 2f + .12f;
         private const float EnemyLineAvoidanceRadius = 1.45f;
+        private const float EnemyProjectileDodgeDistance = 3.2f;
+        private const float EnemyFireWarningDuration = .5f;
+        private const float HitKnockbackDistance = .42f;
         private const float AimAcquireBonus = .2f;
         private const float AimGraceDuration = .5f;
         private const float DefaultCameraFieldOfView = 47f;
@@ -52,6 +55,8 @@ namespace CountDown
 
         private Fighter player;
         private readonly List<Fighter> enemies = new List<Fighter>();
+        private readonly List<ProjectileThreat> projectileThreats =
+            new List<ProjectileThreat>();
         private Camera gameCamera;
         private AudioSource audioSource;
         private bool finished;
@@ -295,7 +300,7 @@ namespace CountDown
             laser.endWidth = .01f;
             laser.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 
-            return new Fighter
+            var fighter = new Fighter
             {
                 root = root.transform,
                 body = body.transform,
@@ -307,6 +312,70 @@ namespace CountDown
                 health = MaxHealth,
                 displayName = displayName
             };
+            fighter.bodyRenderer = body.GetComponent<Renderer>();
+            fighter.baseBodyColor = fighter.bodyRenderer.material.color;
+            if (isPlayer)
+                CreateMeleeRangeIndicator(fighter);
+            else
+                CreateEnemyFireWarning(fighter);
+            return fighter;
+        }
+
+        private void CreateMeleeRangeIndicator(Fighter fighter)
+        {
+            fighter.meleeRangeRing = CreateGroundRing("Melee Range",
+                fighter.root, new Color(.2f, .8f, 1f, .28f), .035f);
+            fighter.meleeCooldownRing = CreateGroundRing("Melee Cooldown",
+                fighter.root, new Color(.25f, 1f, .58f, .9f), .075f);
+            SetRingPositions(fighter.meleeRangeRing, MeleeRange, 64, true);
+            SetRingPositions(fighter.meleeCooldownRing, MeleeRange, 2, false);
+        }
+
+        private LineRenderer CreateGroundRing(string name, Transform parent,
+            Color color, float width)
+        {
+            var ring = NewObject(name).AddComponent<LineRenderer>();
+            ring.transform.SetParent(parent);
+            ring.transform.localPosition = new Vector3(0f, .025f, 0f);
+            ring.useWorldSpace = false;
+            ring.material = MaterialFor(null, color, 3000);
+            ring.startColor = ring.endColor = color;
+            ring.startWidth = ring.endWidth = width;
+            ring.shadowCastingMode =
+                UnityEngine.Rendering.ShadowCastingMode.Off;
+            ring.receiveShadows = false;
+            return ring;
+        }
+
+        private static void SetRingPositions(LineRenderer ring, float radius,
+            int segmentCount, bool closed, float completion = 1f)
+        {
+            segmentCount = Mathf.Max(2, segmentCount);
+            ring.loop = closed;
+            ring.positionCount = segmentCount + (closed ? 0 : 1);
+            float denominator = closed ? segmentCount : Mathf.Max(1, segmentCount);
+            for (int i = 0; i < ring.positionCount; i++)
+            {
+                float angle = i / denominator * Mathf.PI * 2f * completion;
+                ring.SetPosition(i, new Vector3(
+                    Mathf.Cos(angle) * radius, 0f,
+                    Mathf.Sin(angle) * radius));
+            }
+        }
+
+        private void CreateEnemyFireWarning(Fighter fighter)
+        {
+            var warning = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            warning.name = "Fire Warning Placeholder";
+            warning.transform.SetParent(fighter.muzzle);
+            warning.transform.localPosition = new Vector3(0f, .32f, .18f);
+            warning.transform.localRotation = Quaternion.identity;
+            warning.transform.localScale = Vector3.one * .28f;
+            warning.GetComponent<Renderer>().material = MaterialFor(
+                null, new Color(1f, .3f, .08f), 3100);
+            Destroy(warning.GetComponent<Collider>());
+            warning.SetActive(false);
+            fighter.fireWarning = warning;
         }
 
         private GameObject NewObject(string name)
@@ -488,6 +557,7 @@ namespace CountDown
 
             player = null;
             enemies.Clear();
+            projectileThreats.Clear();
             gameCamera = null;
             audioSource = null;
             finished = false;
@@ -572,32 +642,14 @@ namespace CountDown
                 enemy.nextDecisionAt = Time.time + Random.Range(.65f, 1.15f);
             }
 
-            Vector3 playerAim = player.gunPivot.forward;
-            playerAim.y = 0f;
-            playerAim = playerAim.sqrMagnitude > .01f
-                ? playerAim.normalized : Vector3.forward;
-            Vector3 fromMuzzle = enemy.root.position - player.muzzle.position;
-            fromMuzzle.y = 0f;
-            float alongLine = Vector3.Dot(fromMuzzle, playerAim);
-            Vector3 closestOnLine = player.muzzle.position +
-                playerAim * Mathf.Max(0f, alongLine);
-            closestOnLine.y = enemy.root.position.y;
-            Vector3 awayFromLine = enemy.root.position - closestOnLine;
-            float lineDistance = awayFromLine.magnitude;
-            bool inPlayerLine = alongLine > 0f &&
-                lineDistance < EnemyLineAvoidanceRadius;
-
             Vector3 orbit = Vector3.Cross(Vector3.up, toPlayer.normalized) *
                 enemy.evadeDirection;
-            Vector3 lineEscape = lineDistance > .05f
-                ? awayFromLine.normalized
-                : orbit;
-            float urgency = player.aiming
-                ? Mathf.Lerp(.8f, 1.35f, 1f - Mathf.InverseLerp(1f, 7f, player.count))
-                : .65f;
-            Vector3 tacticalMove = inPlayerLine
-                ? lineEscape * (1.35f * urgency) + orbit * .35f
-                : orbit * .72f;
+            Vector3 projectileEscape;
+            bool projectileClose = TryGetProjectileEscape(
+                enemy, out projectileEscape);
+            Vector3 tacticalMove = projectileClose
+                ? projectileEscape * 1.55f + orbit * .25f
+                : orbit * .38f;
 
             if (distance < 2.5f)
             {
@@ -614,7 +666,10 @@ namespace CountDown
                     tacticalMove += -toPlayer.normalized * .65f;
             }
 
-            MoveEnemy(enemy, tacticalMove, dt);
+            bool firingSoon = enemy.count == 1 && enemy.aiming &&
+                (enemy.hasTarget || Time.time <= enemy.aimGraceUntil);
+            if (!firingSoon)
+                MoveEnemy(enemy, tacticalMove, dt);
 
             Vector3 flatTarget = player.root.position + Vector3.up * .85f - enemy.gunPivot.position;
             flatTarget.y = 0f;
@@ -625,6 +680,51 @@ namespace CountDown
                     enemy.gunPivot.rotation, desired, EnemyTurnSpeed * dt);
             }
             enemy.aiming = true;
+            UpdateEnemyFireWarning(enemy);
+        }
+
+        private bool TryGetProjectileEscape(Fighter enemy, out Vector3 escape)
+        {
+            escape = Vector3.zero;
+            float bestDistance = EnemyProjectileDodgeDistance;
+            for (int i = 0; i < projectileThreats.Count; i++)
+            {
+                ProjectileThreat threat = projectileThreats[i];
+                if (!threat.fromPlayer) continue;
+                Vector3 toEnemy = enemy.root.position - threat.position;
+                toEnemy.y = 0f;
+                float distance = toEnemy.magnitude;
+                if (distance >= bestDistance ||
+                    Vector3.Dot(toEnemy, threat.direction) <= 0f)
+                    continue;
+                float pathDistance = Vector3.Cross(
+                    threat.direction, toEnemy).magnitude;
+                if (pathDistance > EnemyLineAvoidanceRadius) continue;
+                Vector3 lateral = toEnemy -
+                    threat.direction * Vector3.Dot(toEnemy, threat.direction);
+                escape = lateral.sqrMagnitude > .01f
+                    ? lateral.normalized
+                    : Vector3.Cross(Vector3.up, threat.direction).normalized *
+                        enemy.evadeDirection;
+                bestDistance = distance;
+            }
+            return escape.sqrMagnitude > .01f;
+        }
+
+        private void UpdateEnemyFireWarning(Fighter enemy)
+        {
+            if (enemy.fireWarning == null) return;
+            bool countingFinalSecond = enemy.count == 1 && enemy.aiming &&
+                (enemy.hasTarget || Time.time <= enemy.aimGraceUntil);
+            bool visible = countingFinalSecond &&
+                enemy.countTimer >= 1f - EnemyFireWarningDuration;
+            enemy.fireWarning.SetActive(visible);
+            if (visible)
+            {
+                enemy.fireWarning.transform.localScale = Vector3.one *
+                    (.24f + Mathf.PingPong(Time.time * 4f, .1f));
+                enemy.fireWarning.transform.LookAt(gameCamera.transform);
+            }
         }
 
         private void MoveEnemy(Fighter enemy, Vector3 direction, float dt)
@@ -796,6 +896,13 @@ namespace CountDown
         private IEnumerator FireProjectile(Fighter source, Vector3 position,
             Vector3 direction)
         {
+            var threat = new ProjectileThreat
+            {
+                position = position,
+                direction = direction,
+                fromPlayer = source.isPlayer
+            };
+            projectileThreats.Add(threat);
             var projectile = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             projectile.name = source.isPlayer ? "Player Projectile" : "Enemy Projectile";
             projectile.transform.SetParent(transform);
@@ -839,6 +946,7 @@ namespace CountDown
                 }
 
                 position += direction * distance;
+                threat.position = position;
                 projectile.transform.position = position;
                 trailObject.transform.position = position;
                 if (connected)
@@ -855,6 +963,7 @@ namespace CountDown
 
             Destroy(projectile);
             Destroy(trailObject, trail.time);
+            projectileThreats.Remove(threat);
         }
 
         private Fighter FindAliveEnemy(Transform hitTransform)
@@ -883,6 +992,10 @@ namespace CountDown
         private IEnumerator Melee()
         {
             meleeReadyAt = Time.time + MeleeCooldown;
+            var targets = new List<Fighter>();
+            for (int i = 0; i < enemies.Count; i++)
+                if (!enemies[i].dead && IsInMeleeRange(enemies[i]))
+                    targets.Add(enemies[i]);
             player.stunnedUntil = Time.time + .16f;
             Vector3 original = player.gunPivot.localEulerAngles;
             float elapsed = 0f;
@@ -896,12 +1009,10 @@ namespace CountDown
             }
 
             int hitCount = 0;
-            for (int i = 0; i < enemies.Count; i++)
+            for (int i = 0; i < targets.Count; i++)
             {
-                Fighter target = enemies[i];
-                if (target.dead || Vector3.Distance(
-                    player.root.position, target.root.position) > MeleeRange)
-                    continue;
+                Fighter target = targets[i];
+                if (target.dead) continue;
                 target.stunnedUntil = Time.time + .7f;
                 target.aiming = false;
                 target.ResetCount();
@@ -931,10 +1042,16 @@ namespace CountDown
         private bool HasEnemyInMeleeRange()
         {
             for (int i = 0; i < enemies.Count; i++)
-                if (!enemies[i].dead && Vector3.Distance(
-                    player.root.position, enemies[i].root.position) <= MeleeRange)
+                if (!enemies[i].dead && IsInMeleeRange(enemies[i]))
                     return true;
             return false;
+        }
+
+        private bool IsInMeleeRange(Fighter target)
+        {
+            Vector3 offset = target.root.position - player.root.position;
+            offset.y = 0f;
+            return offset.magnitude - BodyRadius <= MeleeRange;
         }
 
         private Fighter ClosestAliveEnemy()
@@ -958,6 +1075,11 @@ namespace CountDown
             if (finished) return;
             target.health = Mathf.Max(0, target.health - amount);
             target.hitFlash = 1f;
+            Vector3 knockback = target.root.position - source.root.position;
+            knockback.y = 0f;
+            if (knockback.sqrMagnitude < .01f)
+                knockback = -source.gunPivot.forward;
+            MoveFighter(target, knockback.normalized * HitKnockbackDistance);
             shake = .24f;
             Play("Audio/Impact", 72f, .09f, .6f);
             if (target.health <= 0)
@@ -1021,9 +1143,35 @@ namespace CountDown
                 : Quaternion.Euler(0f, 0f, Mathf.Clamp(-lean.x * 2.2f, -8f, 8f));
             fighter.body.localRotation = Quaternion.Slerp(
                 fighter.body.localRotation, targetRotation, dt * (fighter.dead ? 4f : 9f));
+            if (fighter.bodyRenderer != null)
+            {
+                float flash = fighter.hitFlash > 0f &&
+                    Mathf.PingPong(fighter.hitFlash * 12f, 1f) > .35f ? 1f : 0f;
+                fighter.bodyRenderer.material.color = Color.Lerp(
+                    fighter.baseBodyColor, Color.white, flash);
+                fighter.bodyRenderer.enabled = !(fighter.hitFlash > .35f &&
+                    fighter.hitFlash < .75f);
+            }
             if (!fighter.dead)
                 fighter.body.localPosition = new Vector3(0f,
                     .88f + Mathf.Sin(Time.time * 7f) * Mathf.Min(lean.magnitude * .006f, .035f), 0f);
+            if (fighter.isPlayer)
+                UpdateMeleeRangeIndicator(fighter);
+        }
+
+        private void UpdateMeleeRangeIndicator(Fighter fighter)
+        {
+            if (fighter.meleeCooldownRing == null) return;
+            float cooldown = Mathf.Clamp01(
+                1f - (meleeReadyAt - Time.time) / MeleeCooldown);
+            int segments = Mathf.Max(2, Mathf.CeilToInt(64f * cooldown));
+            SetRingPositions(fighter.meleeCooldownRing, MeleeRange,
+                segments, cooldown >= .999f, cooldown);
+            Color color = cooldown >= .999f
+                ? new Color(.25f, 1f, .58f, .95f)
+                : new Color(1f, .58f, .16f, .82f);
+            fighter.meleeCooldownRing.startColor =
+                fighter.meleeCooldownRing.endColor = color;
         }
 
         private Vector3 ClampToArena(Vector3 value)
@@ -1427,6 +1575,11 @@ namespace CountDown
             public Transform gunPivot;
             public Transform muzzle;
             public LineRenderer laser;
+            public LineRenderer meleeRangeRing;
+            public LineRenderer meleeCooldownRing;
+            public Renderer bodyRenderer;
+            public Color baseBodyColor;
+            public GameObject fireWarning;
             public Fighter opponent;
             public bool isPlayer;
             public string displayName;
@@ -1456,6 +1609,13 @@ namespace CountDown
                 countTimer = 0f;
                 pulse = 1f;
             }
+        }
+
+        private sealed class ProjectileThreat
+        {
+            public Vector3 position;
+            public Vector3 direction;
+            public bool fromPlayer;
         }
     }
 }
