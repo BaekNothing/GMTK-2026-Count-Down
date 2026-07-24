@@ -36,6 +36,8 @@ public static class WebGLProjectSetup
         }
 
         PlayerSettings.runInBackground = true;
+        PlayerSettings.SplashScreen.show = false;
+        PlayerSettings.SplashScreen.showUnityLogo = false;
         PlayerSettings.bundleVersion = DateTime.Now.ToString("yyyyMMdd") + ".000";
         AssetDatabase.SaveAssets();
         Debug.Log("WebGL project setup completed.");
@@ -61,8 +63,18 @@ public static class WebGLProjectSetup
         }
 
         AddControlsToWebPage("Builds/WebGL/index.html");
+        RemoveUnityBrandingFromWebPage("Builds/WebGL/index.html");
         Debug.Log(
             $"WebGL build completed: {report.summary.totalSize} bytes");
+    }
+
+    private static void RemoveUnityBrandingFromWebPage(string indexPath)
+    {
+        string html = File.ReadAllText(indexPath);
+        html = html.Replace("<div id=\"unity-logo\"></div>", string.Empty);
+        html = html.Replace(
+            "<div id=\"unity-logo-title-footer\"></div>", string.Empty);
+        File.WriteAllText(indexPath, html);
     }
 
     private static void AddControlsToWebPage(string indexPath)

@@ -77,6 +77,13 @@ public static class CountDownValidation
             Require(typeof(CountDownGame).GetField("versionStyle",
                 BindingFlags.Instance | BindingFlags.NonPublic) == null,
                 "Build version visibility must not depend on the runtime GUI font.");
+            Require(!PlayerSettings.SplashScreen.show &&
+                !PlayerSettings.SplashScreen.showUnityLogo,
+                "The Unity startup splash and logo must be disabled.");
+            Require(typeof(WebGLProjectSetup).GetMethod(
+                "RemoveUnityBrandingFromWebPage",
+                BindingFlags.Static | BindingFlags.NonPublic) != null,
+                "The WebGL loading and footer Unity logos must be removed.");
 
             Debug.Log("COUNT DOWN runtime validation passed.");
             EditorApplication.Exit(0);
