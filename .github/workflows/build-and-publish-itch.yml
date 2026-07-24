@@ -1,0 +1,89 @@
+name: Build and publish WebGL
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: itch-production
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-publish:
+    name: WebGL to itch.io
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check deployment configuration
+        shell: bash
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+          ITCH_USER: ${{ vars.ITCH_USER }}
+          ITCH_GAME: ${{ vars.ITCH_GAME }}
+        run: |
+          test -n "$UNITY_LICENSE" || { echo "::error::Missing UNITY_LICENSE secret"; exit 1; }
+          test -n "$UNITY_EMAIL" || { echo "::error::Missing UNITY_EMAIL secret"; exit 1; }
+          test -n "$UNITY_PASSWORD" || { echo "::error::Missing UNITY_PASSWORD secret"; exit 1; }
+          test -n "$BUTLER_API_KEY" || { echo "::error::Missing BUTLER_API_KEY secret"; exit 1; }
+          test -n "$ITCH_USER" || { echo "::error::Missing ITCH_USER repository variable"; exit 1; }
+          test -n "$ITCH_GAME" || { echo "::error::Missing ITCH_GAME repository variable"; exit 1; }
+
+      - name: Check out project
+        uses: actions/checkout@v4
+
+      - name: Cache Unity Library
+        uses: actions/cache@v4
+        with:
+          path: Library
+          key: Library-WebGL-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          restore-keys: |
+            Library-WebGL-
+
+      - name: Build WebGL
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          unityVersion: auto
+          targetPlatform: WebGL
+          buildsPath: Builds
+          buildName: WebGL
+
+      - name: Upload WebGL artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: COUNT-DOWN-WebGL-${{ github.sha }}
+          path: Builds/WebGL
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Install itch.io butler
+        shell: bash
+        run: |
+          curl -fsSL -o butler.zip \
+            https://broth.itch.ovh/butler/linux-amd64/LATEST/archive/default
+          unzip -q butler.zip -d "$RUNNER_TEMP/butler"
+          chmod +x "$RUNNER_TEMP/butler/butler"
+
+      - name: Publish to itch.io
+        shell: bash
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+          ITCH_USER: ${{ vars.ITCH_USER }}
+          ITCH_GAME: ${{ vars.ITCH_GAME }}
+        run: |
+          "$RUNNER_TEMP/butler/butler" push \
+            Builds/WebGL \
+            "$ITCH_USER/$ITCH_GAME:webgl" \
+            --userversion "${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}"
