@@ -1901,7 +1901,7 @@ namespace CountDown
 
             DrawPanel(panel, new Color(.025f, .03f, .04f, .82f));
             GUI.Label(new Rect(panel.x + 20f * scale, panel.y + 8f * scale,
-                panel.width - 120f * scale, 38f * scale),
+                panel.width - 145f * scale, 38f * scale),
                 Localized("CONTROLS", "조작 가이드", "操作指南", "操作指南",
                     "操作ガイド", "COMMANDES", "STEUERUNG", "CONTROLES",
                     "วิธีควบคุม", "CONTROLES"), guideTitleStyle);
@@ -1978,7 +1978,7 @@ namespace CountDown
             float hitSize = size * 2.5f;
             Rect hitArea = new Rect(button.xMax - hitSize, button.y,
                 hitSize, hitSize);
-            if (GUI.Button(hitArea, GUIContent.none, GUIStyle.none))
+            if (PointerReleasedIn(hitArea))
                 SetGuideOpen(true);
         }
 
@@ -2018,14 +2018,42 @@ namespace CountDown
 
         private void DrawLanguageButton(Rect guidePanel, float scale)
         {
-            Rect button = new Rect(guidePanel.xMax - 78f * scale,
-                guidePanel.y + 8f * scale, 60f * scale, 34f * scale);
+            Rect button = new Rect(guidePanel.xMax - 108f * scale,
+                guidePanel.y + 6f * scale, 90f * scale, 51f * scale);
             DrawPanel(button, new Color(.08f, .16f, .2f, .96f));
-            GUI.Label(button, "[ " + LanguageCode(guideLanguage) + " ]",
-                guideButtonStyle);
-            if (!languagePanelOpen &&
-                GUI.Button(button, GUIContent.none, GUIStyle.none))
+            DrawFittedLabel(button, LanguageCode(guideLanguage),
+                guideButtonStyle, Mathf.Max(12, Mathf.RoundToInt(12f * scale)));
+            if (!languagePanelOpen && PointerReleasedIn(button))
                 OpenLanguagePanel();
+        }
+
+        private static bool PointerReleasedIn(Rect rect)
+        {
+            Event current = Event.current;
+            if (current == null || current.type != EventType.MouseUp ||
+                current.button != 0 || !rect.Contains(current.mousePosition))
+                return false;
+            current.Use();
+            return true;
+        }
+
+        private static void DrawFittedLabel(Rect rect, string text,
+            GUIStyle style, int minimumSize)
+        {
+            int originalSize = style.fontSize;
+            int fittedSize = originalSize;
+            var content = new GUIContent(text);
+            while (fittedSize > minimumSize)
+            {
+                style.fontSize = fittedSize;
+                Vector2 measured = style.CalcSize(content);
+                if (measured.x <= rect.width - 12f &&
+                    measured.y <= rect.height - 6f)
+                    break;
+                fittedSize--;
+            }
+            GUI.Label(rect, content, style);
+            style.fontSize = originalSize;
         }
 
         private void OpenLanguagePanel()

@@ -36,6 +36,9 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- Enlarged the guide language button by 1.5x, removed its decorative brackets,
+  and added automatic font fitting for constrained button widths.
+- The corner help button now keeps exactly the same visual color while pressed.
 - Expanded the corner help button hit area to 2.5 times its visible size.
 - Guide panels now ignore pointer input: start or resume only from the gray
   backdrop, the footer action, Enter, or gamepad A.

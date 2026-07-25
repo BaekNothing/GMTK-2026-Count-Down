@@ -245,6 +245,11 @@ public static class CountDownValidation
                 typeof(CountDownGame).GetMethod("SelectGuideLanguage",
                     BindingFlags.Instance | BindingFlags.NonPublic) != null,
                 "The guide requires a persistent ten-language selector.");
+            Require(typeof(CountDownGame).GetMethod("DrawFittedLabel",
+                BindingFlags.Static | BindingFlags.NonPublic) != null &&
+                typeof(CountDownGame).GetMethod("PointerReleasedIn",
+                    BindingFlags.Static | BindingFlags.NonPublic) != null,
+                "Guide corner buttons require fitted text and state-neutral pointer handling.");
             Require(AssetDatabase.LoadAssetAtPath<Font>(
                     "Assets/Resources/CountDown/Fonts/GuideKorean.otf") != null,
                 "The guide requires its bundled WebGL-safe Korean font.");
