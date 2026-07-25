@@ -36,11 +36,19 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- Death animations now play once and hold their final frame.
+- Added replaceable framed art guides for the arena floor and walls, layered
+  near/far forest backgrounds, gun and aim visuals, combat effects, HUD,
+  crosshair, health, touch controls, panels, and all startup guide cards.
 - Replaced the player and enemy character sheets with the final hand-drawn
   artwork and slowed character animation playback to 2 FPS.
 - Holding aim through a shot now keeps the living target locked even when the
   pointer or stick faces far away. If that target dies, lock transfers by
   virtual-aim proximity, then player distance, with random exact ties.
+- While aiming at a locked target, the camera now frames a point 25% of the way
+  from the player toward that target.
+- Fuse wicks, flames, and alerts now render above floors and walls but below
+  player and enemy characters.
 - Locked shots now lead a moving target slightly instead of always firing at
   its current center.
 - Enemy dodge direction changes now carry momentum, braking for 0.15 seconds

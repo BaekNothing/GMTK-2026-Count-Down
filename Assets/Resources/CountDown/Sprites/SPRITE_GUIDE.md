@@ -40,3 +40,37 @@ Rows are listed top-to-bottom. Frames run left-to-right.
 
 The game loads the named sub-sprites from these sheets. No Animator Controller,
 animation clips, prefab wiring, or filename changes are required after repainting.
+
+## Environment and background slots
+
+- `FloorTile.png`: repeating 256 x 256 arena floor texture.
+- `WallTile.png`: repeating 256 x 256 boundary wall/rail texture.
+- `FloorMark.png`: transparent repeating floor-line texture.
+- `BackgroundFar.png`: wide opaque distant sky/forest panorama.
+- `BackgroundNear.png`: wide transparent near-forest silhouette.
+
+The far and near backgrounds are placed as separate cards around the arena.
+Keep important silhouettes away from the extreme top and side edges. Far art
+may be opaque; near art should keep alpha around its treetops.
+
+## Weapon, targeting, combat, and UI slots
+
+The following 128 x 128 transparent frame-guide PNGs provide the exact replacement
+filenames: `Gun`, `Stand`, `AimLine`, `AimLock`, `Projectile`,
+`ProjectileTrail`, `MuzzleFlash`, `EnemyWarning`, `MeleeRange`,
+`MeleeCooldown`, `Crosshair`, `HealthPip`, and `TouchStick`.
+
+Panel textures are `GuidePanel.png` (512 square), `HudPanel.png` (256 x 128),
+`Button.png` (192 x 96), and `AimVignette.png` (512 square). Preserve alpha.
+The guide generator deliberately keeps these as grids, safe-area frames, and
+simple envelope silhouettes so finished art can replace
+files without changing code. `GuidePanel`, `Crosshair`, `HealthPip`,
+`AimVignette`, `FloorTile`, `WallTile`, `FloorMark`, and `AimLine` are already
+loaded by the runtime; the remaining named slots document every currently
+procedural visual and are ready for final-art hookup. These are drawing guides,
+not generated final resources.
+
+## Regeneration
+
+Run `COUNT DOWN > Regenerate Sprite Guides` in Unity. This regenerates every
+non-character frame guide while preserving existing character and fuse sheets.

@@ -14,21 +14,272 @@ namespace CountDown.Editor
         public static void Generate()
         {
             Directory.CreateDirectory(OutputDirectory);
-            GenerateSheet("PlayerSheet", new[]
-            {
-                "Idle", "Move", "Death", "Melee", "MeleeRecover"
-            }, new Color32(24, 178, 255, 255));
-            GenerateSheet("EnemySheet", new[]
-            {
-                "Idle", "Move", "Death"
-            }, new Color32(255, 62, 48, 255));
-            GenerateFuseSheet();
+            if (!File.Exists(OutputDirectory + "/PlayerSheet.png"))
+                GenerateSheet("PlayerSheet", new[]
+                {
+                    "Idle", "Move", "Death", "Melee", "MeleeRecover"
+                }, new Color32(24, 178, 255, 255));
+            if (!File.Exists(OutputDirectory + "/EnemySheet.png"))
+                GenerateSheet("EnemySheet", new[]
+                {
+                    "Idle", "Move", "Death"
+                }, new Color32(255, 62, 48, 255));
+            if (!File.Exists(OutputDirectory + "/FuseSheet.png"))
+                GenerateFuseSheet();
+            GenerateResourceGuides();
             AssetDatabase.Refresh();
             SliceSheet(OutputDirectory + "/PlayerSheet.png", 5, "Player");
             SliceSheet(OutputDirectory + "/EnemySheet.png", 3, "Enemy");
             SliceFuseSheet(OutputDirectory + "/FuseSheet.png");
+            ConfigureGeneratedMocks();
             AssetDatabase.SaveAssets();
             Debug.Log("COUNT DOWN sprite guides generated successfully.");
+        }
+
+        private static void GenerateResourceGuides()
+        {
+            GenerateTile("FloorTile", new Color32(47, 57, 58, 255),
+                new Color32(72, 84, 78, 255), false);
+            GenerateTile("WallTile", new Color32(89, 70, 48, 255),
+                new Color32(148, 118, 72, 255), true);
+            GenerateTile("FloorMark", new Color32(0, 0, 0, 0),
+                new Color32(132, 157, 134, 190), false);
+            GenerateIcon("Gun", MockShape.Gun, new Color32(40, 45, 49, 255));
+            GenerateIcon("Stand", MockShape.Disc, new Color32(24, 27, 30, 255));
+            GenerateIcon("AimLine", MockShape.Line, new Color32(255, 255, 255, 255));
+            GenerateIcon("AimLock", MockShape.Ring, new Color32(112, 255, 190, 230));
+            GenerateIcon("Projectile", MockShape.Disc, new Color32(255, 236, 116, 255));
+            GenerateIcon("ProjectileTrail", MockShape.Line, new Color32(255, 180, 76, 210));
+            GenerateIcon("MuzzleFlash", MockShape.Burst, new Color32(255, 224, 90, 255));
+            GenerateIcon("EnemyWarning", MockShape.Warning, new Color32(255, 80, 60, 225));
+            GenerateIcon("MeleeRange", MockShape.Ring, new Color32(62, 205, 255, 150));
+            GenerateIcon("MeleeCooldown", MockShape.Ring, new Color32(74, 255, 150, 230));
+            GenerateIcon("Crosshair", MockShape.Crosshair, new Color32(255, 255, 255, 230));
+            GenerateIcon("HealthPip", MockShape.Heart, new Color32(255, 72, 76, 255));
+            GenerateIcon("TouchStick", MockShape.Ring, new Color32(255, 255, 255, 110));
+            GeneratePanel("GuidePanel", 512, 512, new Color32(18, 24, 29, 238));
+            GeneratePanel("HudPanel", 256, 128, new Color32(18, 24, 29, 218));
+            GeneratePanel("Button", 192, 96, new Color32(42, 72, 82, 245));
+            GeneratePanel("AimVignette", 512, 512, new Color32(5, 9, 13, 190), true);
+            GenerateBackgroundGuide("BackgroundFar", 1536, 512, false);
+            GenerateBackgroundGuide("BackgroundNear", 1024, 256, true);
+            GenerateGuideCard("Move", new Color32(56, 184, 255, 255), 0);
+            GenerateGuideCard("Dash", new Color32(255, 184, 58, 255), 1);
+            GenerateGuideCard("Melee", new Color32(78, 244, 144, 255), 2);
+        }
+
+        private enum MockShape { Gun, Disc, Line, Ring, Burst, Warning, Crosshair, Heart }
+
+        private static void GenerateTile(string name, Color32 baseColor,
+            Color32 detail, bool planks)
+        {
+            const int size = 256;
+            var texture = NewTexture(size, size, baseColor);
+            Color32[] pixels = texture.GetPixels32();
+            DrawGuideGrid(pixels, size, size, new Color32(255, 255, 255, 80));
+            int spacing = planks ? 32 : 64;
+            for (int i = 0; i < size; i += spacing)
+            {
+                DrawLine(pixels, size, i, 0, i, size - 1, detail, 2);
+                DrawLine(pixels, size, 0, i, size - 1, i, detail, 2);
+            }
+            texture.SetPixels32(pixels);
+            Save(texture, OutputDirectory + "/" + name + ".png");
+        }
+
+        private static void GenerateIcon(string name, MockShape shape, Color32 color)
+        {
+            const int size = 128;
+            var texture = NewTexture(size, size, new Color32(0, 0, 0, 0));
+            Color32[] p = texture.GetPixels32();
+            DrawGuideGrid(p, size, size, new Color32(color.r, color.g, color.b, 64));
+            if (shape == MockShape.Gun)
+            {
+                FillRect(p, size, 16, 57, 92, 16, color);
+                FillRect(p, size, 38, 28, 20, 33, color);
+            }
+            else if (shape == MockShape.Disc)
+                FillCircle(p, size, 64, 64, 26, color);
+            else if (shape == MockShape.Line)
+                DrawLine(p, size, 8, 64, 120, 64, color, 5);
+            else if (shape == MockShape.Ring || shape == MockShape.Crosshair)
+            {
+                DrawRing(p, size, 64, 64, 39, color, 4);
+                if (shape == MockShape.Crosshair)
+                {
+                    DrawLine(p, size, 8, 64, 44, 64, color, 4);
+                    DrawLine(p, size, 84, 64, 120, 64, color, 4);
+                    DrawLine(p, size, 64, 8, 64, 44, color, 4);
+                    DrawLine(p, size, 64, 84, 64, 120, color, 4);
+                }
+            }
+            else if (shape == MockShape.Burst)
+            {
+                FillCircle(p, size, 64, 64, 16, color);
+                for (int i = 0; i < 8; i++)
+                {
+                    float a = i * Mathf.PI / 4f;
+                    DrawLine(p, size, 64, 64,
+                        64 + Mathf.RoundToInt(Mathf.Cos(a) * 48),
+                        64 + Mathf.RoundToInt(Mathf.Sin(a) * 48), color, 7);
+                }
+            }
+            else if (shape == MockShape.Warning)
+            {
+                DrawLine(p, size, 64, 20, 24, 104, color, 7);
+                DrawLine(p, size, 24, 104, 104, 104, color, 7);
+                DrawLine(p, size, 104, 104, 64, 20, color, 7);
+                DrawLine(p, size, 64, 45, 64, 78, color, 7);
+                FillCircle(p, size, 64, 91, 4, color);
+            }
+            else
+            {
+                FillCircle(p, size, 48, 72, 22, color);
+                FillCircle(p, size, 80, 72, 22, color);
+                for (int y = 28; y <= 72; y++)
+                {
+                    int half = Mathf.RoundToInt((y - 28) * .8f);
+                    FillRect(p, size, 64 - half, y, half * 2 + 1, 2, color);
+                }
+            }
+            texture.SetPixels32(p);
+            Save(texture, OutputDirectory + "/" + name + ".png");
+        }
+
+        private static void GeneratePanel(string name, int width, int height,
+            Color32 color, bool vignette = false)
+        {
+            var texture = NewTexture(width, height,
+                vignette ? new Color32(0, 0, 0, 0) : color);
+            Color32[] p = texture.GetPixels32();
+            DrawGuideGrid(p, width, height, new Color32(88, 218, 235, 72));
+            if (vignette)
+            {
+                Vector2 center = new Vector2(width, height) * .5f;
+                float max = center.magnitude;
+                for (int y = 0; y < height; y++)
+                for (int x = 0; x < width; x++)
+                {
+                    float t = Mathf.InverseLerp(.5f, 1f,
+                        Vector2.Distance(new Vector2(x, y), center) / max);
+                    p[y * width + x] = new Color32(color.r, color.g, color.b,
+                        (byte)(color.a * t));
+                }
+            }
+            else
+            {
+                DrawLine(p, width, 3, 3, width - 4, 3,
+                    new Color32(88, 218, 235, 255), 6);
+                DrawLine(p, width, 3, height - 4, width - 4, height - 4,
+                    new Color32(88, 218, 235, 255), 6);
+            }
+            texture.SetPixels32(p);
+            Save(texture, OutputDirectory + "/" + name + ".png");
+        }
+
+        private static void GenerateBackgroundGuide(string name, int width,
+            int height, bool transparent)
+        {
+            var texture = NewTexture(width, height, transparent
+                ? new Color32(0, 0, 0, 0)
+                : new Color32(24, 43, 55, 255));
+            Color32[] p = texture.GetPixels32();
+            var guide = new Color32(92, 218, 225, transparent ? (byte)120 : (byte)180);
+            DrawGuideGrid(p, width, height, guide);
+            DrawLine(p, width, 0, height / 3, width - 1, height / 3, guide, 4);
+            DrawLine(p, width, 0, height * 2 / 3, width - 1, height * 2 / 3,
+                guide, 4);
+            texture.SetPixels32(p);
+            Save(texture, OutputDirectory + "/" + name + ".png");
+        }
+
+        private static void GenerateGuideCard(string name, Color32 accent, int kind)
+        {
+            const int width = 384, height = 216;
+            var texture = NewTexture(width, height, new Color32(12, 18, 23, 255));
+            Color32[] p = texture.GetPixels32();
+            DrawGuideGrid(p, width, height, new Color32(accent.r, accent.g,
+                accent.b, 72));
+            DrawRing(p, width, 92, 108, 48, accent, 7);
+            int offset = kind * 18;
+            DrawLine(p, width, 155, 108 - offset, 320, 108 + offset, accent, 12);
+            FillCircle(p, width, 155, 108 - offset, 16, accent);
+            FillCircle(p, width, 320, 108 + offset, 16, accent);
+            texture.SetPixels32(p);
+            Save(texture, "Assets/Resources/CountDown/Guide/" + name + ".png");
+        }
+
+        private static Texture2D NewTexture(int width, int height, Color32 color)
+        {
+            var texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
+            var pixels = new Color32[width * height];
+            for (int i = 0; i < pixels.Length; i++) pixels[i] = color;
+            texture.SetPixels32(pixels);
+            return texture;
+        }
+
+        private static void Save(Texture2D texture, string path)
+        {
+            texture.Apply(false, false);
+            File.WriteAllBytes(path, texture.EncodeToPNG());
+            Object.DestroyImmediate(texture);
+        }
+
+        private static void DrawRing(Color32[] pixels, int width, int cx, int cy,
+            int radius, Color32 color, int thickness)
+        {
+            int outer = radius * radius;
+            int inner = (radius - thickness) * (radius - thickness);
+            for (int y = -radius; y <= radius; y++)
+            for (int x = -radius; x <= radius; x++)
+            {
+                int d = x * x + y * y;
+                if (d <= outer && d >= inner)
+                    SetPixel(pixels, width, cx + x, cy + y, color);
+            }
+        }
+
+        private static void DrawGuideGrid(Color32[] pixels, int width, int height,
+            Color32 color)
+        {
+            int step = Mathf.Max(16, Mathf.Min(width, height) / 4);
+            for (int x = 0; x < width; x += step)
+                DrawLine(pixels, width, x, 0, x, height - 1, color, 2);
+            for (int y = 0; y < height; y += step)
+                DrawLine(pixels, width, 0, y, width - 1, y, color, 2);
+            DrawLine(pixels, width, 4, 4, width - 5, 4, color, 4);
+            DrawLine(pixels, width, 4, height - 5, width - 5, height - 5, color, 4);
+            DrawLine(pixels, width, 4, 4, 4, height - 5, color, 4);
+            DrawLine(pixels, width, width - 5, 4, width - 5, height - 5, color, 4);
+            DrawLine(pixels, width, width / 2, 0, width / 2, height - 1,
+                new Color32(color.r, color.g, color.b, 180), 2);
+        }
+
+        private static void ConfigureGeneratedMocks()
+        {
+            string[] sprites =
+            {
+                "Gun", "Stand", "AimLine", "AimLock", "Projectile",
+                "ProjectileTrail", "MuzzleFlash", "EnemyWarning", "MeleeRange",
+                "MeleeCooldown", "Crosshair", "HealthPip", "TouchStick",
+                "BackgroundNear"
+            };
+            for (int i = 0; i < sprites.Length; i++)
+                ConfigureSingleSprite(OutputDirectory + "/" + sprites[i] + ".png");
+        }
+
+        private static void ConfigureSingleSprite(string path)
+        {
+            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+            var importer = (TextureImporter)AssetImporter.GetAtPath(path);
+            importer.textureType = TextureImporterType.Sprite;
+            importer.spriteImportMode = SpriteImportMode.Single;
+            importer.spritePixelsPerUnit = 64f;
+            importer.filterMode = FilterMode.Bilinear;
+            importer.mipmapEnabled = false;
+            importer.alphaIsTransparency = true;
+            importer.wrapMode = TextureWrapMode.Clamp;
+            importer.SaveAndReimport();
         }
 
         private static void GenerateFuseSheet()
@@ -236,14 +487,21 @@ namespace CountDown.Editor
 
         private static void SetPixel(Color32[] pixels, int width, int x, int y, Color32 color)
         {
+            int height = pixels.Length / width;
+            if (x < 0 || x >= width || y < 0 || y >= height) return;
             pixels[y * width + x] = color;
         }
 
         private static void FillRect(Color32[] pixels, int width, int x, int y,
             int rectWidth, int rectHeight, Color32 color)
         {
-            for (int py = y; py < y + rectHeight; py++)
-            for (int px = x; px < x + rectWidth; px++)
+            int height = pixels.Length / width;
+            int minY = Mathf.Max(0, y);
+            int maxY = Mathf.Min(height, y + rectHeight);
+            int minX = Mathf.Max(0, x);
+            int maxX = Mathf.Min(width, x + rectWidth);
+            for (int py = minY; py < maxY; py++)
+            for (int px = minX; px < maxX; px++)
                 SetPixel(pixels, width, px, py, color);
         }
 

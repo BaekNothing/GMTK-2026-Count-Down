@@ -137,8 +137,9 @@ public static class CountDownValidation
                 "Acquiring aim must grant 0.2 seconds and retain progress for 0.5 seconds.");
             Require(HasConstant("DefaultCameraFieldOfView", 47f) &&
                 HasConstant("AimingCameraFieldOfView", 42f) &&
-                HasConstant("AimFeedbackSpeed", 5f),
-                "Aiming must smoothly zoom the camera from 47 to 42 degrees.");
+                HasConstant("AimFeedbackSpeed", 5f) &&
+                HasConstant("AimCameraTargetWeight", .25f),
+                "Aiming must smoothly zoom and frame 25 percent toward the locked target.");
             Require(typeof(CountDownGame).GetMethod("DrawAimVignette",
                 BindingFlags.Instance | BindingFlags.NonPublic) != null,
                 "Aiming must display a dark edge vignette.");
@@ -183,9 +184,10 @@ public static class CountDownValidation
                     BindingFlags.Instance | BindingFlags.NonPublic) != null,
                 "Enemies must stop for their final second and warn 0.5 seconds before firing.");
             Require(HasConstant("SpriteFramesPerSecond", 2f) &&
+                HasConstant("DeathAnimationFrameCount", 4) &&
                 HasConstant("FuseFlameFramesPerSecond", 6f) &&
                 HasConstant("FuseAlertFramesPerSecond", 5f),
-                "Character animation must play at 2 FPS while fuse effects keep their timing.");
+                "Character animation must play at 2 FPS and death must hold after four frames.");
             Require(HasConstant("FuseSegmentScale", .56f) &&
                 HasConstant("FuseFlameScale", .48f),
                 "The fuse wick and flame effects must render at double size.");
@@ -193,6 +195,19 @@ public static class CountDownValidation
                 "The fuse must use 65 percent of its previous spatial length.");
             Require(HasConstant("FuseSegmentCount", 15),
                 "Fuse length must support one wick segment per starting count.");
+            Require(HasConstant("FuseSortingOrder", -10) &&
+                HasConstant("FuseFlameSortingOrder", -9) &&
+                HasConstant("FuseAlertSortingOrder", -8) &&
+                Find("PLAYER").transform.Find("Fuse Segment 1")
+                    .GetComponent<SpriteRenderer>()
+                    .sortingOrder == -10 &&
+                Find("PLAYER").transform.Find("Fuse Flame")
+                    .GetComponent<SpriteRenderer>()
+                    .sortingOrder == -9 &&
+                Find("PLAYER").transform.Find("Fuse Alert")
+                    .GetComponent<SpriteRenderer>()
+                    .sortingOrder == -8,
+                "Fuse visuals must render above the arena and below fighters.");
             Transform playerRoot = Find("PLAYER").transform;
             Transform targetRoot = Find("TARGET").transform;
             Transform playerGun = playerRoot.Find("Gun Pivot");
@@ -224,6 +239,9 @@ public static class CountDownValidation
             Require(railRenderer.material.renderQueue == 1002 &&
                 railRenderer.sortingOrder == -998,
                 "Arena rails must render behind gameplay objects.");
+            Require(Find("Distant Forest") != null &&
+                Find("Near Forest") != null,
+                "The arena requires distant and near replaceable background layers.");
             Require(typeof(CountDownGame).GetMethod("DrawBuildVersion",
                 BindingFlags.Instance | BindingFlags.NonPublic) != null,
                 "A safe-area anchored build version overlay is required.");

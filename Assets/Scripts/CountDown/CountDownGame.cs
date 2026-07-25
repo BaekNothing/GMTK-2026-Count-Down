@@ -45,6 +45,7 @@ namespace CountDown
         private const float DefaultCameraFieldOfView = 47f;
         private const float AimingCameraFieldOfView = 42f;
         private const float AimFeedbackSpeed = 5f;
+        private const float AimCameraTargetWeight = .25f;
         private const int InitialEnemyCount = 2;
         private const float EnemyBaseMoveSpeed = 2.52f;
         private const float EnemyMoveSpeedPerStage = .315f;
@@ -60,12 +61,16 @@ namespace CountDown
         private const float PlayerMovementLockedBrightness = .58f;
         private const float CameraDistanceMultiplier = 1.15f;
         private const float SpriteFramesPerSecond = 2f;
+        private const int DeathAnimationFrameCount = 4;
         private const int FuseSegmentCount = EnemyStageOneMaxCount;
         private const float FuseLinkLength = .104f;
         private const float FuseSegmentScale = .56f;
         private const float FuseFlameScale = .48f;
         private const float FuseFlameFramesPerSecond = 6f;
         private const float FuseAlertFramesPerSecond = 5f;
+        private const int FuseSortingOrder = -10;
+        private const int FuseFlameSortingOrder = -9;
+        private const int FuseAlertSortingOrder = -8;
         private const float PreFirePause = .42f;
 
         private enum InputMode
@@ -124,6 +129,9 @@ namespace CountDown
         private Texture2D guideMoveImage;
         private Texture2D guideDashImage;
         private Texture2D guideMeleeImage;
+        private Texture2D guidePanelImage;
+        private Texture2D crosshairImage;
+        private Texture2D healthPipImage;
         private Texture2D buildVersionTexture;
         private int moveTouchId = -1;
         private int aimTouchId = -1;
@@ -151,10 +159,17 @@ namespace CountDown
         {
             Application.runInBackground = true;
             white = Texture2D.whiteTexture;
-            aimVignette = CreateAimVignetteTexture();
+            aimVignette = Resources.Load<Texture2D>(
+                "CountDown/Sprites/AimVignette") ?? CreateAimVignetteTexture();
             guideMoveImage = Resources.Load<Texture2D>("CountDown/Guide/Move");
             guideDashImage = Resources.Load<Texture2D>("CountDown/Guide/Dash");
             guideMeleeImage = Resources.Load<Texture2D>("CountDown/Guide/Melee");
+            guidePanelImage = Resources.Load<Texture2D>(
+                "CountDown/Sprites/GuidePanel");
+            crosshairImage = Resources.Load<Texture2D>(
+                "CountDown/Sprites/Crosshair");
+            healthPipImage = Resources.Load<Texture2D>(
+                "CountDown/Sprites/HealthPip");
             guideFont = Resources.Load<Font>("CountDown/Fonts/GuideKorean");
             guideLatinFont = Resources.Load<Font>("CountDown/Fonts/GuideLatin");
             guideThaiFont = Resources.Load<Font>("CountDown/Fonts/GuideThai");
@@ -189,6 +204,7 @@ namespace CountDown
             sun.transform.rotation = Quaternion.Euler(42f, -28f, 0f);
 
             CreateArena();
+            CreateArenaBackground();
             player = CreateFighter("PLAYER", true,
                 new Vector3(0f, FighterGroundHeight, -2.75f),
                 new Color(.12f, .72f, 1f), "Player");
@@ -246,6 +262,8 @@ namespace CountDown
             Renderer floorRenderer = floor.GetComponent<Renderer>();
             floorRenderer.material = MaterialFor(
                 "Materials/Floor", new Color(.13f, .145f, .16f), 1000);
+            ApplyMockTexture(floorRenderer.material, "FloorTile",
+                new Vector2(ArenaWidth / 4f, ArenaDepth / 4f));
             floorRenderer.sortingOrder = -1000;
 
             CreateBoundary(new Vector3(0f, .15f, ArenaDepth * .5f + .2f),
@@ -274,6 +292,8 @@ namespace CountDown
             go.transform.localScale = scale;
             Renderer renderer = go.GetComponent<Renderer>();
             renderer.material = MaterialFor(null, new Color(.65f, .58f, .38f), 1002);
+            ApplyMockTexture(renderer.material, "WallTile",
+                new Vector2(Mathf.Max(scale.x, scale.z) / 2f, 1f));
             renderer.sortingOrder = -998;
             Destroy(go.GetComponent<Collider>());
         }
@@ -287,6 +307,7 @@ namespace CountDown
             go.transform.localScale = scale;
             Renderer renderer = go.GetComponent<Renderer>();
             renderer.material = MaterialFor(null, new Color(.24f, .255f, .27f), 1001);
+            ApplyMockTexture(renderer.material, "FloorMark", Vector2.one);
             renderer.sortingOrder = -999;
             Destroy(go.GetComponent<Collider>());
         }
@@ -360,6 +381,8 @@ namespace CountDown
             laser.positionCount = 2;
             laser.useWorldSpace = true;
             laser.material = MaterialFor(null, color);
+            ApplyMockTexture(laser.material, "AimLine", Vector2.one);
+            laser.textureMode = LineTextureMode.Tile;
             laser.startWidth = .018f;
             laser.endWidth = .01f;
             laser.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -463,7 +486,7 @@ namespace CountDown
                 var renderer = segment.AddComponent<SpriteRenderer>();
                 renderer.sprite = segmentSprite;
                 renderer.color = Color.Lerp(fighter.accent, new Color(.42f, .25f, .12f), .62f);
-                renderer.sortingOrder = 20;
+                renderer.sortingOrder = FuseSortingOrder;
                 segment.transform.localScale = Vector3.one * FuseSegmentScale;
                 fighter.fuseSegments[i] = renderer;
             }
@@ -478,7 +501,7 @@ namespace CountDown
                 FindSprite(sprites, "Fuse_Flame_2")
             };
             fighter.fuseFlame.sprite = fighter.fuseFlameFrames[0];
-            fighter.fuseFlame.sortingOrder = 22;
+            fighter.fuseFlame.sortingOrder = FuseFlameSortingOrder;
             flame.transform.localScale = Vector3.one * FuseFlameScale;
 
             var alert = NewObject("Fuse Alert");
@@ -490,7 +513,7 @@ namespace CountDown
                 FindSprite(sprites, "Fuse_Alert_1")
             };
             fighter.fuseAlert.sprite = fighter.fuseAlertFrames[0];
-            fighter.fuseAlert.sortingOrder = 23;
+            fighter.fuseAlert.sortingOrder = FuseAlertSortingOrder;
             alert.transform.localScale = Vector3.one * .28f;
             fighter.fuseAlert.enabled = false;
         }
@@ -585,6 +608,53 @@ namespace CountDown
             material.color = fallback;
             material.renderQueue = renderQueue;
             return material;
+        }
+
+        private static void ApplyMockTexture(Material material, string resourceName,
+            Vector2 scale)
+        {
+            Texture2D texture = Resources.Load<Texture2D>(
+                "CountDown/Sprites/" + resourceName);
+            if (texture == null || material == null) return;
+            material.mainTexture = texture;
+            material.mainTextureScale = scale;
+        }
+
+        private void CreateArenaBackground()
+        {
+            Texture2D far = Resources.Load<Texture2D>(
+                "CountDown/Sprites/BackgroundFar");
+            Texture2D near = Resources.Load<Texture2D>(
+                "CountDown/Sprites/BackgroundNear");
+            CreateBackgroundCard("Distant Forest", far,
+                new Vector3(0f, 5.2f, ArenaDepth * .5f + 5f),
+                new Vector3(32f, 10f, 1f), 900);
+            CreateBackgroundCard("Near Forest", near,
+                new Vector3(0f, 2.7f, ArenaDepth * .5f + 2.4f),
+                new Vector3(29f, 5.2f, 1f), 950);
+            CreateBackgroundCard("Distant Forest Left", far,
+                new Vector3(-ArenaWidth * .5f - 4.5f, 4.5f, 0f),
+                new Vector3(22f, 9f, 1f), 900, 90f);
+            CreateBackgroundCard("Distant Forest Right", far,
+                new Vector3(ArenaWidth * .5f + 4.5f, 4.5f, 0f),
+                new Vector3(22f, 9f, 1f), 900, -90f);
+        }
+
+        private void CreateBackgroundCard(string name, Texture2D texture,
+            Vector3 position, Vector3 scale, int renderQueue, float yaw = 180f)
+        {
+            if (texture == null) return;
+            var card = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            card.name = name;
+            card.transform.SetParent(transform);
+            card.transform.position = position;
+            card.transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+            card.transform.localScale = scale;
+            Renderer renderer = card.GetComponent<Renderer>();
+            renderer.material = MaterialFor(null, Color.white, renderQueue);
+            renderer.material.mainTexture = texture;
+            renderer.sortingOrder = renderQueue - 2000;
+            Destroy(card.GetComponent<Collider>());
         }
 
         private void Update()
@@ -1722,7 +1792,8 @@ namespace CountDown
 
             int elapsedFrame = Mathf.FloorToInt(
                 (Time.time - fighter.animationStartedAt) * SpriteFramesPerSecond);
-            int frame = loop ? elapsedFrame % 4 : Mathf.Min(elapsedFrame, 3);
+            int frame = loop ? elapsedFrame % 4 :
+                Mathf.Min(elapsedFrame, DeathAnimationFrameCount - 1);
             string prefix = fighter.isPlayer ? "Player" : "Enemy";
             Sprite sprite;
             if (fighter.spriteFrames.TryGetValue(
@@ -1774,17 +1845,26 @@ namespace CountDown
             gameCamera.fieldOfView = immediate ? targetFieldOfView :
                 Mathf.Lerp(gameCamera.fieldOfView, targetFieldOfView,
                     1f - Mathf.Exp(-AimFeedbackSpeed * Time.deltaTime));
-            Vector3 follow = new Vector3(player.root.position.x, 7.8f,
-                player.root.position.z - 8.8f);
-            Vector3 cameraOffset = follow - player.root.position;
-            follow = player.root.position +
+            Vector3 cameraFocus = player.root.position;
+            if (player.aiming && player.aimLockTarget != null &&
+                !player.aimLockTarget.dead)
+            {
+                Vector3 framedFocus = Vector3.Lerp(player.root.position,
+                    player.aimLockTarget.root.position, AimCameraTargetWeight);
+                cameraFocus = Vector3.Lerp(player.root.position,
+                    framedFocus, aimFeedback);
+            }
+            Vector3 follow = new Vector3(cameraFocus.x, 7.8f,
+                cameraFocus.z - 8.8f);
+            Vector3 cameraOffset = follow - cameraFocus;
+            follow = cameraFocus +
                 cameraOffset * CameraDistanceMultiplier;
             if (shake > 0f)
                 follow += Random.insideUnitSphere * shake;
             gameCamera.transform.position = immediate ? follow :
                 Vector3.Lerp(gameCamera.transform.position, follow, Time.deltaTime * 5f);
             Quaternion rotation = Quaternion.LookRotation(
-                player.root.position + new Vector3(0f, .75f, .8f) -
+                cameraFocus + new Vector3(0f, .75f, .8f) -
                 gameCamera.transform.position, Vector3.up);
             gameCamera.transform.rotation = immediate ? rotation :
                 Quaternion.Slerp(gameCamera.transform.rotation, rotation, Time.deltaTime * 5f);
@@ -2549,6 +2629,13 @@ namespace CountDown
             Color color = player.hasTarget && player.aiming
                 ? new Color(.3f, 1f, .62f) : new Color(1f, 1f, 1f, .75f);
             GUI.color = color;
+            if (crosshairImage != null)
+            {
+                GUI.DrawTexture(new Rect(mouse.x - 18f, mouse.y - 18f, 36f, 36f),
+                    crosshairImage, ScaleMode.ScaleToFit, true);
+                GUI.color = Color.white;
+                return;
+            }
             GUI.DrawTexture(new Rect(mouse.x - 13f, mouse.y - 1f, 9f, 2f), white);
             GUI.DrawTexture(new Rect(mouse.x + 4f, mouse.y - 1f, 9f, 2f), white);
             GUI.DrawTexture(new Rect(mouse.x - 1f, mouse.y - 13f, 2f, 9f), white);
@@ -2565,7 +2652,9 @@ namespace CountDown
                 GUI.color = i < health
                     ? (playerSide ? new Color(.12f, .72f, 1f) : new Color(1f, .25f, .18f))
                     : new Color(.18f, .19f, .2f);
-                GUI.DrawTexture(new Rect(rect.x + i * (cell + gap), rect.y, cell, rect.height), white);
+                GUI.DrawTexture(new Rect(rect.x + i * (cell + gap), rect.y,
+                    cell, rect.height), healthPipImage != null ? healthPipImage : white,
+                    ScaleMode.ScaleToFit, true);
             }
             GUI.color = Color.white;
         }
@@ -2573,7 +2662,8 @@ namespace CountDown
         private void DrawPanel(Rect rect, Color color)
         {
             GUI.color = color;
-            GUI.DrawTexture(rect, white);
+            GUI.DrawTexture(rect, guidePanelImage != null ? guidePanelImage : white,
+                ScaleMode.StretchToFill, true);
             GUI.color = Color.white;
         }
 
