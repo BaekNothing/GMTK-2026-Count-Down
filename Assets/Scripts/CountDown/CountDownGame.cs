@@ -95,7 +95,9 @@ namespace CountDown
         private GUIStyle aimStyle;
         private GUIStyle guideTitleStyle;
         private GUIStyle guideLabelStyle;
-        private GUIStyle guideKeyStyle;
+        private Texture2D guideMoveImage;
+        private Texture2D guideDashImage;
+        private Texture2D guideMeleeImage;
         private Texture2D buildVersionTexture;
         private int moveTouchId = -1;
         private int aimTouchId = -1;
@@ -124,6 +126,9 @@ namespace CountDown
             Application.runInBackground = true;
             white = Texture2D.whiteTexture;
             aimVignette = CreateAimVignetteTexture();
+            guideMoveImage = Resources.Load<Texture2D>("CountDown/Guide/Move");
+            guideDashImage = Resources.Load<Texture2D>("CountDown/Guide/Dash");
+            guideMeleeImage = Resources.Load<Texture2D>("CountDown/Guide/Melee");
             mouseAimPosition = new Vector2(Screen.width * .5f, Screen.height * .5f);
             BuildWorld();
         }
@@ -1769,13 +1774,6 @@ namespace CountDown
                 wordWrap = true,
                 normal = { textColor = new Color(.93f, .95f, .98f) }
             };
-            guideKeyStyle = new GUIStyle(guideLabelStyle)
-            {
-                alignment = TextAnchor.MiddleCenter,
-                fontSize = Mathf.Max(11, Mathf.RoundToInt(Screen.height * .016f)),
-                fontStyle = FontStyle.Bold,
-                normal = { textColor = Color.white }
-            };
         }
 
         private void OnGUI()
@@ -1826,9 +1824,9 @@ namespace CountDown
             Rect safe = Screen.safeArea;
             float scale = Mathf.Clamp(Screen.height / 720f, .72f, 1.25f);
             float width = Mathf.Min(520f * scale, safe.width - 24f);
-            float rowHeight = 62f * scale;
+            float rowHeight = 112f * scale;
             float footerHeight = 54f * scale;
-            float height = 52f * scale + rowHeight * 4f + footerHeight;
+            float height = 52f * scale + rowHeight * 3f + footerHeight;
             Rect panel = new Rect(
                 safe.xMin + (safe.width - width) * .5f,
                 Screen.height - safe.yMax + Mathf.Max(18f * scale,
@@ -1841,24 +1839,17 @@ namespace CountDown
                 GuideText("CONTROLS", "조작 가이드"), guideTitleStyle);
 
             float y = panel.y + 50f * scale;
-            DrawGuideRow(new Rect(panel.x + 14f * scale, y,
+            DrawGuideSection(new Rect(panel.x + 14f * scale, y,
                     panel.width - 28f * scale, rowHeight),
-                GuideText("Move", "상하좌우 이동"), scale, "WASD", "L");
+                GuideText("MOVE", "이동"), guideMoveImage, scale);
             y += rowHeight;
-            DrawGuideRow(new Rect(panel.x + 14f * scale, y,
+            DrawGuideSection(new Rect(panel.x + 14f * scale, y,
                     panel.width - 28f * scale, rowHeight),
-                GuideText("Press / hold to aim", "누르고 유지해 조준"),
-                scale, "RMB", "TOUCH", "RT");
+                GuideText("DASH", "대시"), guideDashImage, scale);
             y += rowHeight;
-            DrawGuideRow(new Rect(panel.x + 14f * scale, y,
+            DrawGuideSection(new Rect(panel.x + 14f * scale, y,
                     panel.width - 28f * scale, rowHeight),
-                GuideText("Release aim to dash", "조준을 떼면 대시"),
-                scale, "UP", "TOUCH", "RT");
-            y += rowHeight;
-            DrawGuideRow(new Rect(panel.x + 14f * scale, y,
-                    panel.width - 28f * scale, rowHeight),
-                GuideText("Choose aim direction", "조준 방향 선택"),
-                scale, "MOUSE", "TOUCH", "R");
+                GuideText("MELEE", "근접 공격"), guideMeleeImage, scale);
             y += rowHeight;
             string start = inputMode == InputMode.Touch
                 ? GuideText("TOUCH TO START", "터치하여 시작")
@@ -1869,31 +1860,32 @@ namespace CountDown
                 panel.width - 28f * scale, footerHeight), start, aimStyle);
         }
 
-        private void DrawGuideRow(Rect rect, string description, float scale,
-            params string[] icons)
+        private void DrawGuideSection(Rect rect, string label,
+            Texture2D image, float scale)
         {
-            DrawPanel(rect, new Color(.08f, .095f, .12f, .76f));
-            float iconHeight = rect.height - 14f * scale;
-            float x = rect.x + 8f * scale;
-            float iconWidth = icons.Length > 2 ? 58f * scale : 76f * scale;
-            for (int i = 0; i < icons.Length; i++)
+            DrawPanel(rect, new Color(.08f, .095f, .12f, .78f));
+            Rect imageFrame = new Rect(
+                rect.x + 8f * scale,
+                rect.y + 8f * scale,
+                rect.width - 16f * scale,
+                rect.height - 16f * scale);
+            DrawPanel(imageFrame, new Color(.025f, .03f, .04f, .72f));
+            if (image != null)
             {
-                DrawGuideKey(new Rect(x, rect.y + 7f * scale,
-                    iconWidth, iconHeight), icons[i]);
-                x += iconWidth + 7f * scale;
+                GUI.color = Color.white;
+                GUI.DrawTexture(imageFrame, image, ScaleMode.ScaleToFit, true);
             }
-            GUI.Label(new Rect(x + 7f * scale, rect.y,
-                rect.xMax - x - 13f * scale, rect.height),
-                description, guideLabelStyle);
-        }
-
-        private void DrawGuideKey(Rect rect, string label)
-        {
-            DrawPanel(rect, new Color(.14f, .17f, .21f, 1f));
-            GUI.color = new Color(.3f, .82f, 1f, GUI.color.a);
-            GUI.DrawTexture(new Rect(rect.x, rect.yMax - 3f, rect.width, 3f), white);
-            GUI.color = new Color(1f, 1f, 1f, GUI.color.a);
-            GUI.Label(rect, label, guideKeyStyle);
+            float labelWidth = Mathf.Min(156f * scale, rect.width * .42f);
+            Rect labelRect = new Rect(rect.x + 14f * scale,
+                rect.y + 12f * scale, labelWidth, 30f * scale);
+            DrawPanel(labelRect, new Color(.06f, .12f, .16f, .94f));
+            GUI.color = new Color(.3f, .82f, 1f);
+            GUI.DrawTexture(new Rect(labelRect.x, labelRect.y,
+                4f * scale, labelRect.height), white);
+            GUI.color = Color.white;
+            GUI.Label(new Rect(labelRect.x + 12f * scale, labelRect.y,
+                labelRect.width - 14f * scale, labelRect.height),
+                label, guideLabelStyle);
         }
 
         private static string GuideText(string english, string korean)

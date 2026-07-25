@@ -36,6 +36,9 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- Reworked the startup guide into three thick, single-row image frames for
+  movement, dash, and melee. Each frame accepts a replaceable resource image
+  while its localized label remains an engine-rendered upper-left overlay.
 - Shortened every gun fuse to 65% of its previous spatial length.
 - Added a three-slot remaining-health display above every enemy.
 - Added a localized startup control card with an explicit touch/click/button

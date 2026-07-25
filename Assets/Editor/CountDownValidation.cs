@@ -222,9 +222,11 @@ public static class CountDownValidation
                 "A safe-area anchored build version overlay is required.");
             Require(typeof(CountDownGame).GetMethod("DrawStartupGuide",
                 BindingFlags.Instance | BindingFlags.NonPublic) != null &&
+                typeof(CountDownGame).GetMethod("DrawGuideSection",
+                    BindingFlags.Instance | BindingFlags.NonPublic) != null &&
                 typeof(CountDownGame).GetMethod("GuideText",
                     BindingFlags.Static | BindingFlags.NonPublic) != null,
-                "The startup control guide must keep localized text separate from its artwork.");
+                "The startup guide must provide localized labels over replaceable image frames.");
             Require(typeof(CountDownGame).GetMethod("StartInputPressed",
                 BindingFlags.Static | BindingFlags.NonPublic) != null,
                 "The control guide must hold gameplay until explicit start input.");
