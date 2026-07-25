@@ -36,6 +36,8 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- Shortened every gun fuse to 65% of its previous spatial length.
+- Added a three-slot remaining-health display above every enemy.
 - Added a localized startup control card with an explicit touch/click/button
   start prompt, opaque content, and a translucent background. Combat waits
   until the player dismisses it.

@@ -58,7 +58,7 @@ namespace CountDown
         private const float CameraDistanceMultiplier = 1.15f;
         private const float SpriteFramesPerSecond = 4f;
         private const int FuseSegmentCount = EnemyStageOneMaxCount;
-        private const float FuseLinkLength = .16f;
+        private const float FuseLinkLength = .104f;
         private const float FuseSegmentScale = .56f;
         private const float FuseFlameScale = .48f;
         private const float FuseFlameFramesPerSecond = 6f;
@@ -2074,7 +2074,9 @@ namespace CountDown
 
         private void DrawWorldCount(Fighter fighter)
         {
-            Vector3 point = gameCamera.WorldToScreenPoint(fighter.root.position + Vector3.up * 2.2f);
+            float height = fighter.isPlayer ? 2.2f : 2.48f;
+            Vector3 point = gameCamera.WorldToScreenPoint(
+                fighter.root.position + Vector3.up * height);
             if (point.z <= 0f) return;
             float size = fighter.count >= 3 ? 34f : fighter.count == 2 ? 42f :
                 fighter.count == 1 ? 54f : 64f;
@@ -2084,6 +2086,34 @@ namespace CountDown
                 fighter.count == 0 ? Color.white : fighter.accent;
             GUI.Label(new Rect(point.x - 60f, Screen.height - point.y - 34f, 120f, 70f),
                 fighter.count.ToString(), countStyle);
+            if (!fighter.isPlayer)
+                DrawWorldEnemyHealth(fighter);
+        }
+
+        private void DrawWorldEnemyHealth(Fighter fighter)
+        {
+            Vector3 point = gameCamera.WorldToScreenPoint(
+                fighter.root.position + Vector3.up * 2.02f);
+            if (point.z <= 0f) return;
+
+            const float cellWidth = 18f;
+            const float cellHeight = 7f;
+            const float gap = 3f;
+            const float padding = 4f;
+            float width = cellWidth * MaxHealth + gap * (MaxHealth - 1);
+            Rect panel = new Rect(point.x - width * .5f - padding,
+                Screen.height - point.y - cellHeight * .5f - padding,
+                width + padding * 2f, cellHeight + padding * 2f);
+            DrawPanel(panel, new Color(.025f, .03f, .04f, .78f));
+            for (int i = 0; i < MaxHealth; i++)
+            {
+                GUI.color = i < fighter.health
+                    ? new Color(1f, .25f, .18f)
+                    : new Color(.17f, .18f, .2f);
+                GUI.DrawTexture(new Rect(panel.x + padding + i * (cellWidth + gap),
+                    panel.y + padding, cellWidth, cellHeight), white);
+            }
+            GUI.color = Color.white;
         }
 
         private void DrawCrosshair()

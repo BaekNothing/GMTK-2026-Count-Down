@@ -182,6 +182,8 @@ public static class CountDownValidation
             Require(HasConstant("FuseSegmentScale", .56f) &&
                 HasConstant("FuseFlameScale", .48f),
                 "The fuse wick and flame effects must render at double size.");
+            Require(HasConstant("FuseLinkLength", .104f),
+                "The fuse must use 65 percent of its previous spatial length.");
             Require(HasConstant("FuseSegmentCount", 15),
                 "Fuse length must support one wick segment per starting count.");
             Transform playerRoot = Find("PLAYER").transform;
@@ -226,6 +228,9 @@ public static class CountDownValidation
             Require(typeof(CountDownGame).GetMethod("StartInputPressed",
                 BindingFlags.Static | BindingFlags.NonPublic) != null,
                 "The control guide must hold gameplay until explicit start input.");
+            Require(typeof(CountDownGame).GetMethod("DrawWorldEnemyHealth",
+                BindingFlags.Instance | BindingFlags.NonPublic) != null,
+                "Each enemy requires a world-space three-slot health display.");
             Require(typeof(CountDownGame).GetMethod("CreateBuildVersionTexture",
                 BindingFlags.Static | BindingFlags.NonPublic) != null,
                 "Build version text must use an embedded WebGL-safe bitmap font.");
