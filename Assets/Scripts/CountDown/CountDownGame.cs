@@ -81,6 +81,7 @@ namespace CountDown
         private bool finished;
         private bool stageTransitioning;
         private bool awaitingStart = true;
+        private bool guideOpen;
         private int stage = 1;
         private float meleeReadyAt;
         private float emergencyDodgeUntil;
@@ -95,6 +96,8 @@ namespace CountDown
         private GUIStyle aimStyle;
         private GUIStyle guideTitleStyle;
         private GUIStyle guideLabelStyle;
+        private GUIStyle guideButtonStyle;
+        private Font guideFont;
         private Texture2D guideMoveImage;
         private Texture2D guideDashImage;
         private Texture2D guideMeleeImage;
@@ -129,6 +132,7 @@ namespace CountDown
             guideMoveImage = Resources.Load<Texture2D>("CountDown/Guide/Move");
             guideDashImage = Resources.Load<Texture2D>("CountDown/Guide/Dash");
             guideMeleeImage = Resources.Load<Texture2D>("CountDown/Guide/Melee");
+            guideFont = Resources.Load<Font>("CountDown/Fonts/GuideKorean");
             mouseAimPosition = new Vector2(Screen.width * .5f, Screen.height * .5f);
             BuildWorld();
         }
@@ -573,6 +577,14 @@ namespace CountDown
                 }
             }
 
+            if (guideOpen)
+            {
+                if (StartInputPressed() || Input.GetKeyDown(KeyCode.Escape))
+                    SetGuideOpen(false);
+                UpdateCamera(false);
+                return;
+            }
+
             if (finished)
             {
                 UpdateAimFeedback(Mathf.Min(Time.deltaTime, .05f));
@@ -741,6 +753,7 @@ namespace CountDown
             finished = false;
             stageTransitioning = false;
             awaitingStart = true;
+            SetGuideOpen(false);
             stage = 1;
             shake = 0f;
             aimFeedback = 0f;
@@ -1761,18 +1774,33 @@ namespace CountDown
                 fontSize = Mathf.Max(13, Mathf.RoundToInt(Screen.height * .021f)),
                 normal = { textColor = Color.white }
             };
+            if (guideFont != null)
+                aimStyle.font = guideFont;
             guideTitleStyle = new GUIStyle(labelStyle)
             {
                 alignment = TextAnchor.MiddleLeft,
                 fontSize = Mathf.Max(17, Mathf.RoundToInt(Screen.height * .025f)),
                 normal = { textColor = new Color(.96f, .85f, .38f) }
             };
+            if (guideFont != null)
+                guideTitleStyle.font = guideFont;
             guideLabelStyle = new GUIStyle(labelStyle)
             {
                 alignment = TextAnchor.MiddleLeft,
                 fontSize = Mathf.Max(13, Mathf.RoundToInt(Screen.height * .018f)),
                 wordWrap = true,
                 normal = { textColor = new Color(.93f, .95f, .98f) }
+            };
+            if (guideFont != null)
+                guideLabelStyle.font = guideFont;
+            guideButtonStyle = new GUIStyle(labelStyle)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = Mathf.Max(22, Mathf.RoundToInt(Screen.height * .03f)),
+                fontStyle = FontStyle.Bold,
+                normal = { textColor = Color.white },
+                hover = { textColor = new Color(.3f, .82f, 1f) },
+                active = { textColor = new Color(.96f, .85f, .38f) }
             };
         }
 
@@ -1792,6 +1820,7 @@ namespace CountDown
             DrawAimState();
             DrawTouchControls();
             DrawStartupGuide();
+            DrawGuideButton();
             GUI.Label(new Rect(0f, Screen.height - 30f, Screen.width, 24f),
                 InputHelpText(), helpStyle);
 
@@ -1818,7 +1847,7 @@ namespace CountDown
 
         private void DrawStartupGuide()
         {
-            if (!awaitingStart || finished || stageTransitioning)
+            if ((!awaitingStart && !guideOpen) || finished || stageTransitioning)
                 return;
 
             Rect safe = Screen.safeArea;
@@ -1851,13 +1880,43 @@ namespace CountDown
                     panel.width - 28f * scale, rowHeight),
                 GuideText("MELEE", "근접 공격"), guideMeleeImage, scale);
             y += rowHeight;
-            string start = inputMode == InputMode.Touch
-                ? GuideText("TOUCH TO START", "터치하여 시작")
-                : inputMode == InputMode.Gamepad
-                    ? GuideText("PRESS A TO START", "A 버튼을 눌러 시작")
-                    : GuideText("CLICK TO START", "클릭하여 시작");
+            string start = guideOpen
+                ? inputMode == InputMode.Touch
+                    ? GuideText("TOUCH TO RESUME", "터치하여 계속")
+                    : inputMode == InputMode.Gamepad
+                        ? GuideText("PRESS A TO RESUME", "A 버튼을 눌러 계속")
+                        : GuideText("CLICK TO RESUME", "클릭하여 계속")
+                : inputMode == InputMode.Touch
+                    ? GuideText("TOUCH TO START", "터치하여 시작")
+                    : inputMode == InputMode.Gamepad
+                        ? GuideText("PRESS A TO START", "A 버튼을 눌러 시작")
+                        : GuideText("CLICK TO START", "클릭하여 시작");
             GUI.Label(new Rect(panel.x + 14f * scale, y,
                 panel.width - 28f * scale, footerHeight), start, aimStyle);
+        }
+
+        private void DrawGuideButton()
+        {
+            if (awaitingStart || guideOpen || finished || stageTransitioning)
+                return;
+            Rect safe = Screen.safeArea;
+            float size = Mathf.Clamp(Screen.height * .06f, 38f, 52f);
+            Rect button = new Rect(safe.xMax - size - 12f,
+                Screen.height - safe.yMax + 58f, size, size);
+            DrawPanel(button, new Color(.025f, .03f, .04f, .86f));
+            if (GUI.Button(button, "?", guideButtonStyle))
+                SetGuideOpen(true);
+        }
+
+        private void SetGuideOpen(bool open)
+        {
+            guideOpen = open;
+            Time.timeScale = open ? 0f : 1f;
+            if (player != null && open)
+            {
+                player.aiming = false;
+                ClearPlayerAimLock();
+            }
         }
 
         private void DrawGuideSection(Rect rect, string label,

@@ -230,6 +230,14 @@ public static class CountDownValidation
             Require(typeof(CountDownGame).GetMethod("StartInputPressed",
                 BindingFlags.Static | BindingFlags.NonPublic) != null,
                 "The control guide must hold gameplay until explicit start input.");
+            Require(typeof(CountDownGame).GetMethod("DrawGuideButton",
+                BindingFlags.Instance | BindingFlags.NonPublic) != null &&
+                typeof(CountDownGame).GetMethod("SetGuideOpen",
+                    BindingFlags.Instance | BindingFlags.NonPublic) != null,
+                "A top-right help button must pause and reopen the guide.");
+            Require(AssetDatabase.LoadAssetAtPath<Font>(
+                    "Assets/Resources/CountDown/Fonts/GuideKorean.otf") != null,
+                "The guide requires its bundled WebGL-safe Korean font.");
             Require(typeof(CountDownGame).GetMethod("DrawWorldEnemyHealth",
                 BindingFlags.Instance | BindingFlags.NonPublic) != null,
                 "Each enemy requires a world-space three-slot health display.");

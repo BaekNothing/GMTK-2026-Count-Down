@@ -36,6 +36,10 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- Added a top-right `?` button that pauses combat and reopens the guide at any
+  time. Its footer changes from start to resume while the guide is reopened.
+- Bundled a WebGL-safe Korean guide font so labels remain visible independently
+  of browser-installed fonts.
 - Reworked the startup guide into three thick, single-row image frames for
   movement, dash, and melee. Each frame accepts a replaceable resource image
   while its localized label remains an engine-rendered upper-left overlay.
