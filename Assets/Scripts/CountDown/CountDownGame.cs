@@ -116,6 +116,7 @@ namespace CountDown
         private GUIStyle guideLabelStyle;
         private GUIStyle guideButtonStyle;
         private Font guideFont;
+        private Font guideLatinFont;
         private Font guideThaiFont;
         private Texture2D guideMoveImage;
         private Texture2D guideDashImage;
@@ -152,6 +153,7 @@ namespace CountDown
             guideDashImage = Resources.Load<Texture2D>("CountDown/Guide/Dash");
             guideMeleeImage = Resources.Load<Texture2D>("CountDown/Guide/Melee");
             guideFont = Resources.Load<Font>("CountDown/Fonts/GuideKorean");
+            guideLatinFont = Resources.Load<Font>("CountDown/Fonts/GuideLatin");
             guideThaiFont = Resources.Load<Font>("CountDown/Fonts/GuideThai");
             guideLanguage = LoadGuideLanguage();
             mouseAimPosition = new Vector2(Screen.width * .5f, Screen.height * .5f);
@@ -1904,27 +1906,28 @@ namespace CountDown
                 panel.width - 145f * scale, 38f * scale),
                 Localized("CONTROLS", "조작 가이드", "操作指南", "操作指南",
                     "操作ガイド", "COMMANDES", "STEUERUNG", "CONTROLES",
-                    "วิธีควบคุม", "CONTROLES"), guideTitleStyle);
+                    "วิธีควบคุม", "COMANDOS"), guideTitleStyle);
             DrawLanguageButton(panel, scale);
 
             float y = panel.y + 50f * scale;
             DrawGuideSection(new Rect(panel.x + 14f * scale, y,
                     panel.width - 28f * scale, rowHeight),
                 Localized("MOVE", "이동", "移動", "移动", "移動",
-                    "DÉPLACEMENT", "BEWEGEN", "MOVER", "เคลื่อนที่", "MOVER"),
+                    "DÉPLACEMENT", "BEWEGEN", "MOVIMIENTO", "เคลื่อนที่",
+                    "MOVIMENTO"),
                 guideMoveImage, scale);
             y += rowHeight;
             DrawGuideSection(new Rect(panel.x + 14f * scale, y,
                     panel.width - 28f * scale, rowHeight),
                 Localized("DASH", "대시", "衝刺", "冲刺", "ダッシュ",
-                    "ESQUIVE", "SPRINT", "IMPULSO", "พุ่ง", "ARRANCADA"),
+                    "ESQUIVE", "SPRINT", "ESQUIVA", "พุ่ง", "ARRANCADA"),
                 guideDashImage, scale);
             y += rowHeight;
             DrawGuideSection(new Rect(panel.x + 14f * scale, y,
                     panel.width - 28f * scale, rowHeight),
                 Localized("MELEE", "근접 공격", "近戰攻擊", "近战攻击",
                     "近接攻撃", "CORPS À CORPS", "NAHKAMPF",
-                    "CUERPO A CUERPO", "โจมตีระยะประชิด", "CORPO A CORPO"),
+                    "ATAQUE CERCANO", "โจมตีระยะประชิด", "ATAQUE DE PERTO"),
                 guideMeleeImage, scale);
             y += rowHeight;
             string start = guideOpen
@@ -2100,8 +2103,7 @@ namespace CountDown
                         : new Color(.07f, .08f, .1f, .92f);
                 DrawPanel(row, rowColor);
                 Font previousFont = guideLabelStyle.font;
-                guideLabelStyle.font = language == GuideLanguage.Thai &&
-                    guideThaiFont != null ? guideThaiFont : guideFont;
+                guideLabelStyle.font = FontForLanguage(language);
                 GUI.Label(new Rect(row.x + 12f * scale, row.y,
                     row.width - 24f * scale, row.height),
                     LanguageName(language), guideLabelStyle);
@@ -2150,12 +2152,23 @@ namespace CountDown
 
         private void ApplyGuideFont()
         {
-            Font font = guideLanguage == GuideLanguage.Thai &&
-                guideThaiFont != null ? guideThaiFont : guideFont;
+            Font font = FontForLanguage(guideLanguage);
             if (font == null) return;
             if (aimStyle != null) aimStyle.font = font;
             if (guideTitleStyle != null) guideTitleStyle.font = font;
             if (guideLabelStyle != null) guideLabelStyle.font = font;
+        }
+
+        private Font FontForLanguage(GuideLanguage language)
+        {
+            if (language == GuideLanguage.Thai && guideThaiFont != null)
+                return guideThaiFont;
+            bool latin = language == GuideLanguage.English ||
+                language == GuideLanguage.French ||
+                language == GuideLanguage.German ||
+                language == GuideLanguage.Spanish ||
+                language == GuideLanguage.Portuguese;
+            return latin && guideLatinFont != null ? guideLatinFont : guideFont;
         }
 
         private void DrawGuideSection(Rect rect, string label,

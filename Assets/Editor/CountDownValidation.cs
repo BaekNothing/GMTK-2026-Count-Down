@@ -254,6 +254,9 @@ public static class CountDownValidation
                     "Assets/Resources/CountDown/Fonts/GuideKorean.otf") != null,
                 "The guide requires its bundled WebGL-safe Korean font.");
             Require(AssetDatabase.LoadAssetAtPath<Font>(
+                    "Assets/Resources/CountDown/Fonts/GuideLatin.ttf") != null,
+                "The guide requires a dedicated WebGL-safe Latin font.");
+            Require(AssetDatabase.LoadAssetAtPath<Font>(
                     "Assets/Resources/CountDown/Fonts/GuideThai.ttf") != null,
                 "The guide requires its bundled WebGL-safe Thai font.");
             Require(typeof(CountDownGame).GetMethod("DrawWorldEnemyHealth",

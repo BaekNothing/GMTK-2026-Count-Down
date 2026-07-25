@@ -36,6 +36,8 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- Revised Spanish and Portuguese labels so their selections read distinctly,
+  and moved Western-language rendering to a dedicated TrueType Latin font.
 - Enlarged the guide language button by 1.5x, removed its decorative brackets,
   and added automatic font fitting for constrained button widths.
 - The corner help button now keeps exactly the same visual color while pressed.
