@@ -36,6 +36,9 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- Holding aim through a shot now keeps the living target locked even when the
+  pointer or stick faces far away. If that target dies, lock transfers by
+  virtual-aim proximity, then player distance, with random exact ties.
 - Locked shots now lead a moving target slightly instead of always firing at
   its current center.
 - Enemy dodge direction changes now carry momentum, braking for 0.15 seconds

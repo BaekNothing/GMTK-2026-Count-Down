@@ -1037,37 +1037,61 @@ namespace CountDown
             if (player == null || !player.aiming)
                 return DirectionToAimTarget(origin, best, normalized);
 
-            if (player.aimLockTarget == null || player.aimLockTarget.dead)
+            if (player.aimLockTarget == null)
                 player.aimLockTarget = best;
-            else
-                player.aimLockTarget = SelectAimLockTarget(
+            else if (player.aimLockTarget.dead)
+                player.aimLockTarget = SelectReplacementAimLockTarget(
                     origin, normalized, player.aimLockTarget);
 
             return DirectionToAimTarget(
                 origin, player.aimLockTarget, normalized);
         }
 
-        private Fighter SelectAimLockTarget(Vector3 origin,
-            Vector3 rawDirection, Fighter current)
+        private Fighter SelectReplacementAimLockTarget(Vector3 origin,
+            Vector3 rawDirection, Fighter previous)
         {
-            Vector3 currentPoint = GetFighterAimPoint(current);
-            currentPoint.y = origin.y;
-            float lockDistance = Vector3.Distance(origin, currentPoint);
+            Vector3 previousPoint = GetFighterAimPoint(previous);
+            previousPoint.y = origin.y;
+            float lockDistance = Mathf.Max(
+                Vector3.Distance(origin, previousPoint), .01f);
             Vector3 virtualAimPoint = origin + rawDirection * lockDistance;
-            Fighter best = current;
-            float bestDistance = (currentPoint - virtualAimPoint).sqrMagnitude;
+            Fighter best = null;
+            float bestVirtualDistance = float.MaxValue;
+            float bestPlayerDistance = float.MaxValue;
+            int exactTieCount = 0;
 
             for (int i = 0; i < enemies.Count; i++)
             {
                 Fighter candidate = enemies[i];
-                if (candidate.dead || candidate == current) continue;
+                if (candidate.dead) continue;
                 Vector3 candidatePoint = GetFighterAimPoint(candidate);
                 candidatePoint.y = origin.y;
-                float distance =
+                float virtualDistance =
                     (candidatePoint - virtualAimPoint).sqrMagnitude;
-                if (distance + .001f >= bestDistance) continue;
-                best = candidate;
-                bestDistance = distance;
+                float playerDistance =
+                    (candidatePoint - origin).sqrMagnitude;
+                bool closerToVirtualAim =
+                    virtualDistance < bestVirtualDistance - .001f;
+                bool sameVirtualDistance =
+                    Mathf.Abs(virtualDistance - bestVirtualDistance) <= .001f;
+                bool closerToPlayer = sameVirtualDistance &&
+                    playerDistance < bestPlayerDistance - .001f;
+                bool exactTie = sameVirtualDistance &&
+                    Mathf.Abs(playerDistance - bestPlayerDistance) <= .001f;
+
+                if (best == null || closerToVirtualAim || closerToPlayer)
+                {
+                    best = candidate;
+                    bestVirtualDistance = virtualDistance;
+                    bestPlayerDistance = playerDistance;
+                    exactTieCount = 1;
+                }
+                else if (exactTie)
+                {
+                    exactTieCount++;
+                    if (Random.Range(0, exactTieCount) == 0)
+                        best = candidate;
+                }
             }
 
             return best;

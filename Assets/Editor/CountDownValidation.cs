@@ -152,11 +152,12 @@ public static class CountDownValidation
                 HasConstant("EnemyMinCountFloor", 3) &&
                 HasConstant("EnemyMaxCountFloor", 7),
                 "Enemy movement speed must rise and starting counts must fall with stage.");
-            Require(typeof(CountDownGame).GetMethod("SelectAimLockTarget",
+            Require(typeof(CountDownGame).GetMethod(
+                    "SelectReplacementAimLockTarget",
                 BindingFlags.Instance | BindingFlags.NonPublic) != null &&
                 typeof(CountDownGame).GetMethod("ClearPlayerAimLock",
                     BindingFlags.Instance | BindingFlags.NonPublic) != null,
-                "Aim lock must persist, switch by virtual aim proximity, and clear on release.");
+                "Aim lock must persist until release or target death, then reacquire by virtual aim proximity.");
             Require(CountObjects("Aim Lock Target") == 2,
                 "Each initial enemy requires a replaceable aim-lock target marker.");
             Require(HasConstant("MeleeRange", 1.8f) &&
