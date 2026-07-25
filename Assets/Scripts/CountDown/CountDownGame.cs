@@ -80,6 +80,7 @@ namespace CountDown
         private AudioSource audioSource;
         private bool finished;
         private bool stageTransitioning;
+        private bool awaitingStart = true;
         private int stage = 1;
         private float meleeReadyAt;
         private float emergencyDodgeUntil;
@@ -92,6 +93,9 @@ namespace CountDown
         private GUIStyle countStyle;
         private GUIStyle helpStyle;
         private GUIStyle aimStyle;
+        private GUIStyle guideTitleStyle;
+        private GUIStyle guideLabelStyle;
+        private GUIStyle guideKeyStyle;
         private Texture2D buildVersionTexture;
         private int moveTouchId = -1;
         private int aimTouchId = -1;
@@ -553,6 +557,17 @@ namespace CountDown
             UpdateInputMode();
             UpdateTouchControls();
 
+            if (awaitingStart)
+            {
+                if (StartInputPressed())
+                    awaitingStart = false;
+                else
+                {
+                    UpdateCamera(false);
+                    return;
+                }
+            }
+
             if (finished)
             {
                 UpdateAimFeedback(Mathf.Min(Time.deltaTime, .05f));
@@ -586,6 +601,17 @@ namespace CountDown
             UpdateAimFeedback(dt);
             UpdateCamera(false);
             shake = Mathf.MoveTowards(shake, 0f, dt * 2.8f);
+        }
+
+        private static bool StartInputPressed()
+        {
+            if (Input.touchCount > 0 &&
+                Input.GetTouch(0).phase == TouchPhase.Began)
+                return true;
+            return Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1) ||
+                Input.GetKeyDown(KeyCode.Space) ||
+                Input.GetKeyDown(KeyCode.Return) ||
+                Input.GetKeyDown(KeyCode.JoystickButton0);
         }
 
         private void UpdatePlayer(float dt)
@@ -709,6 +735,7 @@ namespace CountDown
             audioSource = null;
             finished = false;
             stageTransitioning = false;
+            awaitingStart = true;
             stage = 1;
             shake = 0f;
             aimFeedback = 0f;
@@ -1729,6 +1756,26 @@ namespace CountDown
                 fontSize = Mathf.Max(13, Mathf.RoundToInt(Screen.height * .021f)),
                 normal = { textColor = Color.white }
             };
+            guideTitleStyle = new GUIStyle(labelStyle)
+            {
+                alignment = TextAnchor.MiddleLeft,
+                fontSize = Mathf.Max(17, Mathf.RoundToInt(Screen.height * .025f)),
+                normal = { textColor = new Color(.96f, .85f, .38f) }
+            };
+            guideLabelStyle = new GUIStyle(labelStyle)
+            {
+                alignment = TextAnchor.MiddleLeft,
+                fontSize = Mathf.Max(13, Mathf.RoundToInt(Screen.height * .018f)),
+                wordWrap = true,
+                normal = { textColor = new Color(.93f, .95f, .98f) }
+            };
+            guideKeyStyle = new GUIStyle(guideLabelStyle)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = Mathf.Max(11, Mathf.RoundToInt(Screen.height * .016f)),
+                fontStyle = FontStyle.Bold,
+                normal = { textColor = Color.white }
+            };
         }
 
         private void OnGUI()
@@ -1746,6 +1793,7 @@ namespace CountDown
             DrawCrosshair();
             DrawAimState();
             DrawTouchControls();
+            DrawStartupGuide();
             GUI.Label(new Rect(0f, Screen.height - 30f, Screen.width, 24f),
                 InputHelpText(), helpStyle);
 
@@ -1768,6 +1816,90 @@ namespace CountDown
             }
 
             DrawBuildVersion();
+        }
+
+        private void DrawStartupGuide()
+        {
+            if (!awaitingStart || finished || stageTransitioning)
+                return;
+
+            Rect safe = Screen.safeArea;
+            float scale = Mathf.Clamp(Screen.height / 720f, .72f, 1.25f);
+            float width = Mathf.Min(520f * scale, safe.width - 24f);
+            float rowHeight = 62f * scale;
+            float footerHeight = 54f * scale;
+            float height = 52f * scale + rowHeight * 4f + footerHeight;
+            Rect panel = new Rect(
+                safe.xMin + (safe.width - width) * .5f,
+                Screen.height - safe.yMax + Mathf.Max(18f * scale,
+                    (safe.height - height) * .5f),
+                width, height);
+
+            DrawPanel(panel, new Color(.025f, .03f, .04f, .82f));
+            GUI.Label(new Rect(panel.x + 20f * scale, panel.y + 8f * scale,
+                panel.width - 40f * scale, 38f * scale),
+                GuideText("CONTROLS", "조작 가이드"), guideTitleStyle);
+
+            float y = panel.y + 50f * scale;
+            DrawGuideRow(new Rect(panel.x + 14f * scale, y,
+                    panel.width - 28f * scale, rowHeight),
+                GuideText("Move", "상하좌우 이동"), scale, "WASD", "L");
+            y += rowHeight;
+            DrawGuideRow(new Rect(panel.x + 14f * scale, y,
+                    panel.width - 28f * scale, rowHeight),
+                GuideText("Press / hold to aim", "누르고 유지해 조준"),
+                scale, "RMB", "TOUCH", "RT");
+            y += rowHeight;
+            DrawGuideRow(new Rect(panel.x + 14f * scale, y,
+                    panel.width - 28f * scale, rowHeight),
+                GuideText("Release aim to dash", "조준을 떼면 대시"),
+                scale, "UP", "TOUCH", "RT");
+            y += rowHeight;
+            DrawGuideRow(new Rect(panel.x + 14f * scale, y,
+                    panel.width - 28f * scale, rowHeight),
+                GuideText("Choose aim direction", "조준 방향 선택"),
+                scale, "MOUSE", "TOUCH", "R");
+            y += rowHeight;
+            string start = inputMode == InputMode.Touch
+                ? GuideText("TOUCH TO START", "터치하여 시작")
+                : inputMode == InputMode.Gamepad
+                    ? GuideText("PRESS A TO START", "A 버튼을 눌러 시작")
+                    : GuideText("CLICK TO START", "클릭하여 시작");
+            GUI.Label(new Rect(panel.x + 14f * scale, y,
+                panel.width - 28f * scale, footerHeight), start, aimStyle);
+        }
+
+        private void DrawGuideRow(Rect rect, string description, float scale,
+            params string[] icons)
+        {
+            DrawPanel(rect, new Color(.08f, .095f, .12f, .76f));
+            float iconHeight = rect.height - 14f * scale;
+            float x = rect.x + 8f * scale;
+            float iconWidth = icons.Length > 2 ? 58f * scale : 76f * scale;
+            for (int i = 0; i < icons.Length; i++)
+            {
+                DrawGuideKey(new Rect(x, rect.y + 7f * scale,
+                    iconWidth, iconHeight), icons[i]);
+                x += iconWidth + 7f * scale;
+            }
+            GUI.Label(new Rect(x + 7f * scale, rect.y,
+                rect.xMax - x - 13f * scale, rect.height),
+                description, guideLabelStyle);
+        }
+
+        private void DrawGuideKey(Rect rect, string label)
+        {
+            DrawPanel(rect, new Color(.14f, .17f, .21f, 1f));
+            GUI.color = new Color(.3f, .82f, 1f, GUI.color.a);
+            GUI.DrawTexture(new Rect(rect.x, rect.yMax - 3f, rect.width, 3f), white);
+            GUI.color = new Color(1f, 1f, 1f, GUI.color.a);
+            GUI.Label(rect, label, guideKeyStyle);
+        }
+
+        private static string GuideText(string english, string korean)
+        {
+            return Application.systemLanguage == SystemLanguage.Korean
+                ? korean : english;
         }
 
         private void DrawAimVignette()

@@ -13,6 +13,7 @@ restores the player's health.
 - `WASD`: Move
 - Mouse: The fighter turns toward the cursor
 - Hold right mouse button: Aim and advance the countdown
+- Release aim: Dash at double movement speed for 0.5 seconds
 - Bash activates automatically when an enemy enters range
 - `R`: Restart after the result
 - `Escape`: Quit
@@ -30,10 +31,16 @@ The distance from each initial touch point controls stick strength.
 - Left stick: Move
 - Right stick: Aim direction
 - Hold right trigger: Aim and advance the countdown
+- Release aim: Dash at double movement speed for 0.5 seconds
 - Bash activates automatically when an enemy enters range
 
 ## Latest update
 
+- Added a localized startup control card with an explicit touch/click/button
+  start prompt, opaque content, and a translucent background. Combat waits
+  until the player dismisses it.
+- The guide calls out the release-to-dash action across mouse, touch, and
+  gamepad play.
 - Enemy movement speed is 10% lower at every stage.
 - Holding aim now locks the first assisted target until aim is released. Moving
   the virtual aim point closer to another enemy transfers the lock, and a

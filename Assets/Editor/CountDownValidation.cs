@@ -218,6 +218,14 @@ public static class CountDownValidation
             Require(typeof(CountDownGame).GetMethod("DrawBuildVersion",
                 BindingFlags.Instance | BindingFlags.NonPublic) != null,
                 "A safe-area anchored build version overlay is required.");
+            Require(typeof(CountDownGame).GetMethod("DrawStartupGuide",
+                BindingFlags.Instance | BindingFlags.NonPublic) != null &&
+                typeof(CountDownGame).GetMethod("GuideText",
+                    BindingFlags.Static | BindingFlags.NonPublic) != null,
+                "The startup control guide must keep localized text separate from its artwork.");
+            Require(typeof(CountDownGame).GetMethod("StartInputPressed",
+                BindingFlags.Static | BindingFlags.NonPublic) != null,
+                "The control guide must hold gameplay until explicit start input.");
             Require(typeof(CountDownGame).GetMethod("CreateBuildVersionTexture",
                 BindingFlags.Static | BindingFlags.NonPublic) != null,
                 "Build version text must use an embedded WebGL-safe bitmap font.");
