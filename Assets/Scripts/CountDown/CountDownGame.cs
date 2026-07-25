@@ -35,7 +35,10 @@ namespace CountDown
         private const float FighterSeparation = BodyRadius * 2f + .12f;
         private const float EnemyLineAvoidanceRadius = 1.45f;
         private const float EnemyProjectileDodgeDistance = 3.2f;
+        private const float EnemyMoveTransitionDuration = .15f;
         private const float EnemyFireWarningDuration = .5f;
+        private const float AimPredictionStrength = .35f;
+        private const float MaxAimPredictionTime = .3f;
         private const float HitKnockbackDistance = .42f;
         private const float AimAcquireBonus = .2f;
         private const float AimGraceDuration = .5f;
@@ -963,9 +966,31 @@ namespace CountDown
         private void MoveEnemy(Fighter enemy, Vector3 direction, float dt)
         {
             direction.y = 0f;
-            if (direction.sqrMagnitude > .001f)
-                MoveFighter(enemy, direction.normalized *
-                    EnemyMoveSpeedForStage() * dt);
+            Vector3 desiredDirection = direction.sqrMagnitude > .001f
+                ? direction.normalized : Vector3.zero;
+            float speed = EnemyMoveSpeedForStage();
+
+            if (!enemy.brakingForDirectionChange &&
+                enemy.moveVelocity.sqrMagnitude > .01f &&
+                desiredDirection.sqrMagnitude > .01f &&
+                Vector3.Dot(enemy.moveVelocity.normalized, desiredDirection) < .5f)
+            {
+                enemy.brakingForDirectionChange = true;
+            }
+
+            Vector3 targetVelocity = enemy.brakingForDirectionChange
+                ? Vector3.zero : desiredDirection * speed;
+            enemy.moveVelocity = Vector3.MoveTowards(
+                enemy.moveVelocity, targetVelocity,
+                speed / EnemyMoveTransitionDuration * dt);
+            if (enemy.brakingForDirectionChange &&
+                enemy.moveVelocity.sqrMagnitude < .001f)
+            {
+                enemy.moveVelocity = Vector3.zero;
+                enemy.brakingForDirectionChange = false;
+            }
+
+            MoveFighter(enemy, enemy.moveVelocity * dt);
         }
 
         private float EnemyMoveSpeedForStage()
@@ -1186,8 +1211,11 @@ namespace CountDown
             if (fighter.pendingFireTarget != null &&
                 !fighter.pendingFireTarget.dead)
             {
-                direction = (GetFighterAimPoint(fighter.pendingFireTarget) -
-                    fighter.muzzle.position).normalized;
+                direction = (GetPredictedAimPoint(
+                    fighter.muzzle.position, fighter.pendingFireTarget,
+                    fighter.isPlayer
+                        ? ProjectileSpeed * PlayerProjectileSpeedMultiplier
+                        : ProjectileSpeed) - fighter.muzzle.position).normalized;
             }
             else
             {
@@ -1203,6 +1231,19 @@ namespace CountDown
                 fighter.ResetCount();
             else
                 ResetEnemyCount(fighter);
+        }
+
+        private static Vector3 GetPredictedAimPoint(Vector3 origin,
+            Fighter target, float projectileSpeed)
+        {
+            Vector3 aimPoint = GetFighterAimPoint(target);
+            float travelTime = Vector3.Distance(origin, aimPoint) /
+                Mathf.Max(projectileSpeed, .01f);
+            float predictionTime = Mathf.Min(
+                travelTime * AimPredictionStrength, MaxAimPredictionTime);
+            Vector3 predicted = aimPoint + target.motionVelocity * predictionTime;
+            predicted.y = aimPoint.y;
+            return predicted;
         }
 
         private void ResetEnemyCount(Fighter enemy)
@@ -1501,6 +1542,8 @@ namespace CountDown
             Vector3 lean = fighter.lastPosition == Vector3.zero ? Vector3.zero :
                 (fighter.root.position - fighter.lastPosition) / Mathf.Max(dt, .001f);
             fighter.lastPosition = fighter.root.position;
+            fighter.motionVelocity = Vector3.Lerp(
+                fighter.motionVelocity, lean, Mathf.Clamp01(dt * 12f));
 
             Quaternion targetRotation = fighter.dead && fighter.spriteRenderer == null
                 ? Quaternion.Euler(78f, 0f, fighter.isPlayer ? -8f : 8f)
@@ -2561,6 +2604,9 @@ namespace CountDown
             public Fighter pendingFireTarget;
             public Vector3 pendingFireDirection;
             public Vector3 lastPosition;
+            public Vector3 motionVelocity;
+            public Vector3 moveVelocity;
+            public bool brakingForDirectionChange;
             public int countMin = 3;
             public int countMax = 7;
 

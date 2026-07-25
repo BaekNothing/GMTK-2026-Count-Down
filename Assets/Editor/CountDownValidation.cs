@@ -107,6 +107,11 @@ public static class CountDownValidation
             Require(typeof(CountDownGame).GetMethod("GetFighterAimPoint",
                 BindingFlags.Static | BindingFlags.NonPublic) != null,
                 "Shots locked to a fighter must target the hitbox center.");
+            Require(HasConstant("AimPredictionStrength", .35f) &&
+                HasConstant("MaxAimPredictionTime", .3f) &&
+                typeof(CountDownGame).GetMethod("GetPredictedAimPoint",
+                    BindingFlags.Static | BindingFlags.NonPublic) != null,
+                "Locked shots must slightly lead targets along their movement.");
             Require(typeof(CountDownGame).GetField("PlayerTurnSpeed",
                 BindingFlags.Static | BindingFlags.NonPublic) == null,
                 "Player aiming must be instantaneous with no turn-speed limit.");
@@ -119,9 +124,10 @@ public static class CountDownValidation
                 "Player aim-lock acquisition must use a 15-degree assist cone.");
             Require(HasConstant("EnemyLineAvoidanceRadius", 1.45f) &&
                 HasConstant("EnemyProjectileDodgeDistance", 3.2f) &&
+                HasConstant("EnemyMoveTransitionDuration", .15f) &&
                 typeof(CountDownGame).GetMethod("TryGetProjectileEscape",
                     BindingFlags.Instance | BindingFlags.NonPublic) != null,
-                "Enemies must dodge only when a player projectile gets close.");
+                "Enemies must dodge nearby projectiles with 0.15-second movement transitions.");
             Require(HasConstant("FighterSeparation", 1.08f) &&
                 typeof(CountDownGame).GetMethod("ResolveAllFighterOverlaps",
                     BindingFlags.Instance | BindingFlags.NonPublic) != null,

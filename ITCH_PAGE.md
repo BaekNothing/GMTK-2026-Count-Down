@@ -36,6 +36,10 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- Locked shots now lead a moving target slightly instead of always firing at
+  its current center.
+- Enemy dodge direction changes now carry momentum, braking for 0.15 seconds
+  before accelerating into the new movement over 0.15 seconds.
 - Revised Spanish and Portuguese labels so their selections read distinctly,
   and moved Western-language rendering to a dedicated TrueType Latin font.
 - Enlarged the guide language button by 1.5x, removed its decorative brackets,
