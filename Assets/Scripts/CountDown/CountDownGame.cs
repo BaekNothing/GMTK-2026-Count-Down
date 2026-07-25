@@ -59,7 +59,7 @@ namespace CountDown
         private const float PlayerMeleeRecovery = 1.5f;
         private const float PlayerMovementLockedBrightness = .58f;
         private const float CameraDistanceMultiplier = 1.15f;
-        private const float SpriteFramesPerSecond = 4f;
+        private const float SpriteFramesPerSecond = 2f;
         private const int FuseSegmentCount = EnemyStageOneMaxCount;
         private const float FuseLinkLength = .104f;
         private const float FuseSegmentScale = .56f;

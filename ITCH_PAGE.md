@@ -36,6 +36,8 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- Replaced the player and enemy character sheets with the final hand-drawn
+  artwork and slowed character animation playback to 2 FPS.
 - Holding aim through a shot now keeps the living target locked even when the
   pointer or stick faces far away. If that target dies, lock transfers by
   virtual-aim proximity, then player distance, with random exact ties.

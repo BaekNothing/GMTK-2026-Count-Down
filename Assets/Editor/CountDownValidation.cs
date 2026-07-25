@@ -182,10 +182,10 @@ public static class CountDownValidation
                 typeof(CountDownGame).GetMethod("UpdateEnemyFireWarning",
                     BindingFlags.Instance | BindingFlags.NonPublic) != null,
                 "Enemies must stop for their final second and warn 0.5 seconds before firing.");
-            Require(HasConstant("SpriteFramesPerSecond", 4f) &&
+            Require(HasConstant("SpriteFramesPerSecond", 2f) &&
                 HasConstant("FuseFlameFramesPerSecond", 6f) &&
                 HasConstant("FuseAlertFramesPerSecond", 5f),
-                "Character and fuse sprite animations must play at half speed.");
+                "Character animation must play at 2 FPS while fuse effects keep their timing.");
             Require(HasConstant("FuseSegmentScale", .56f) &&
                 HasConstant("FuseFlameScale", .48f),
                 "The fuse wick and flame effects must render at double size.");
