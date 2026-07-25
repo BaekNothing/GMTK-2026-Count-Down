@@ -17,6 +17,11 @@ sequence unless the user explicitly requests local-only or no-publish work:
    details in Git commits and publish builds only through `Tools/Publish-Itch.ps1`.
 8. Report the commit, pushed branch, build result, and itch.io channel/version.
 
+Do not use browser automation for build validation, gameplay checks, visual QA,
+itch.io pages, or devlogs. Rely on Unity validation and build logs for automated
+checks. When a browser-only or visual confirmation is still useful, hand that
+check to the user with concise reproduction steps.
+
 Never place Unity credentials or the itch.io API key in tracked files. Local
 Unity Personal activation is authoritative for builds. itch.io credentials
 and destination may be read from the Git-ignored `.env.itch.local`, process
