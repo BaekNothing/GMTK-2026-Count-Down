@@ -72,6 +72,20 @@ namespace CountDown
             Gamepad
         }
 
+        private enum GuideLanguage
+        {
+            English,
+            Korean,
+            ChineseTraditional,
+            ChineseSimplified,
+            Japanese,
+            French,
+            German,
+            Spanish,
+            Thai,
+            Portuguese
+        }
+
         private Fighter player;
         private readonly List<Fighter> enemies = new List<Fighter>();
         private readonly List<ProjectileThreat> projectileThreats =
@@ -82,6 +96,10 @@ namespace CountDown
         private bool stageTransitioning;
         private bool awaitingStart = true;
         private bool guideOpen;
+        private bool languagePanelOpen;
+        private bool languageAxisReady = true;
+        private GuideLanguage guideLanguage;
+        private int languageFocus;
         private int stage = 1;
         private float meleeReadyAt;
         private float emergencyDodgeUntil;
@@ -98,6 +116,7 @@ namespace CountDown
         private GUIStyle guideLabelStyle;
         private GUIStyle guideButtonStyle;
         private Font guideFont;
+        private Font guideThaiFont;
         private Texture2D guideMoveImage;
         private Texture2D guideDashImage;
         private Texture2D guideMeleeImage;
@@ -133,6 +152,8 @@ namespace CountDown
             guideDashImage = Resources.Load<Texture2D>("CountDown/Guide/Dash");
             guideMeleeImage = Resources.Load<Texture2D>("CountDown/Guide/Melee");
             guideFont = Resources.Load<Font>("CountDown/Fonts/GuideKorean");
+            guideThaiFont = Resources.Load<Font>("CountDown/Fonts/GuideThai");
+            guideLanguage = LoadGuideLanguage();
             mouseAimPosition = new Vector2(Screen.width * .5f, Screen.height * .5f);
             BuildWorld();
         }
@@ -566,20 +587,40 @@ namespace CountDown
             UpdateInputMode();
             UpdateTouchControls();
 
+            if (languagePanelOpen)
+            {
+                UpdateLanguagePanelInput();
+                UpdateCamera(false);
+                return;
+            }
+
             if (awaitingStart)
             {
-                if (StartInputPressed())
+                if (ConfirmKeyPressed())
                     awaitingStart = false;
                 else
                 {
+                    if (Input.GetKeyDown(KeyCode.JoystickButton3))
+                        OpenLanguagePanel();
                     UpdateCamera(false);
                     return;
                 }
             }
 
+            if (!guideOpen && !finished && !stageTransitioning &&
+                Input.GetKeyDown(KeyCode.JoystickButton3))
+            {
+                SetGuideOpen(true);
+                UpdateCamera(false);
+                return;
+            }
+
             if (guideOpen)
             {
-                if (StartInputPressed() || Input.GetKeyDown(KeyCode.Escape))
+                if (Input.GetKeyDown(KeyCode.JoystickButton3))
+                    OpenLanguagePanel();
+                else if (ConfirmKeyPressed() || Input.GetKeyDown(KeyCode.Escape) ||
+                    Input.GetKeyDown(KeyCode.JoystickButton1))
                     SetGuideOpen(false);
                 UpdateCamera(false);
                 return;
@@ -620,14 +661,10 @@ namespace CountDown
             shake = Mathf.MoveTowards(shake, 0f, dt * 2.8f);
         }
 
-        private static bool StartInputPressed()
+        private static bool ConfirmKeyPressed()
         {
-            if (Input.touchCount > 0 &&
-                Input.GetTouch(0).phase == TouchPhase.Began)
-                return true;
-            return Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1) ||
-                Input.GetKeyDown(KeyCode.Space) ||
-                Input.GetKeyDown(KeyCode.Return) ||
+            return Input.GetKeyDown(KeyCode.Return) ||
+                Input.GetKeyDown(KeyCode.KeypadEnter) ||
                 Input.GetKeyDown(KeyCode.JoystickButton0);
         }
 
@@ -714,7 +751,8 @@ namespace CountDown
             bool gamepadActive = leftStick.sqrMagnitude >
                     GamepadDeadzone * GamepadDeadzone ||
                 rightStick.sqrMagnitude > GamepadDeadzone * GamepadDeadzone ||
-                Input.GetKey(KeyCode.JoystickButton7);
+                Input.GetKey(KeyCode.JoystickButton7) ||
+                Input.GetKey(KeyCode.JoystickButton3);
             if (gamepadActive)
             {
                 inputMode = InputMode.Gamepad;
@@ -754,6 +792,7 @@ namespace CountDown
             stageTransitioning = false;
             awaitingStart = true;
             SetGuideOpen(false);
+            languagePanelOpen = false;
             stage = 1;
             shake = 0f;
             aimFeedback = 0f;
@@ -1774,16 +1813,12 @@ namespace CountDown
                 fontSize = Mathf.Max(13, Mathf.RoundToInt(Screen.height * .021f)),
                 normal = { textColor = Color.white }
             };
-            if (guideFont != null)
-                aimStyle.font = guideFont;
             guideTitleStyle = new GUIStyle(labelStyle)
             {
                 alignment = TextAnchor.MiddleLeft,
                 fontSize = Mathf.Max(17, Mathf.RoundToInt(Screen.height * .025f)),
                 normal = { textColor = new Color(.96f, .85f, .38f) }
             };
-            if (guideFont != null)
-                guideTitleStyle.font = guideFont;
             guideLabelStyle = new GUIStyle(labelStyle)
             {
                 alignment = TextAnchor.MiddleLeft,
@@ -1791,8 +1826,6 @@ namespace CountDown
                 wordWrap = true,
                 normal = { textColor = new Color(.93f, .95f, .98f) }
             };
-            if (guideFont != null)
-                guideLabelStyle.font = guideFont;
             guideButtonStyle = new GUIStyle(labelStyle)
             {
                 alignment = TextAnchor.MiddleCenter,
@@ -1802,6 +1835,7 @@ namespace CountDown
                 hover = { textColor = new Color(.3f, .82f, 1f) },
                 active = { textColor = new Color(.96f, .85f, .38f) }
             };
+            ApplyGuideFont();
         }
 
         private void OnGUI()
@@ -1821,6 +1855,7 @@ namespace CountDown
             DrawTouchControls();
             DrawStartupGuide();
             DrawGuideButton();
+            DrawLanguagePanel();
             GUI.Label(new Rect(0f, Screen.height - 30f, Screen.width, 24f),
                 InputHelpText(), helpStyle);
 
@@ -1850,6 +1885,8 @@ namespace CountDown
             if ((!awaitingStart && !guideOpen) || finished || stageTransitioning)
                 return;
 
+            DrawPanel(new Rect(0f, 0f, Screen.width, Screen.height),
+                new Color(.18f, .19f, .21f, .72f));
             Rect safe = Screen.safeArea;
             float scale = Mathf.Clamp(Screen.height / 720f, .72f, 1.25f);
             float width = Mathf.Min(520f * scale, safe.width - 24f);
@@ -1864,35 +1901,68 @@ namespace CountDown
 
             DrawPanel(panel, new Color(.025f, .03f, .04f, .82f));
             GUI.Label(new Rect(panel.x + 20f * scale, panel.y + 8f * scale,
-                panel.width - 40f * scale, 38f * scale),
-                GuideText("CONTROLS", "조작 가이드"), guideTitleStyle);
+                panel.width - 120f * scale, 38f * scale),
+                Localized("CONTROLS", "조작 가이드", "操作指南", "操作指南",
+                    "操作ガイド", "COMMANDES", "STEUERUNG", "CONTROLES",
+                    "วิธีควบคุม", "CONTROLES"), guideTitleStyle);
+            DrawLanguageButton(panel, scale);
 
             float y = panel.y + 50f * scale;
             DrawGuideSection(new Rect(panel.x + 14f * scale, y,
                     panel.width - 28f * scale, rowHeight),
-                GuideText("MOVE", "이동"), guideMoveImage, scale);
+                Localized("MOVE", "이동", "移動", "移动", "移動",
+                    "DÉPLACEMENT", "BEWEGEN", "MOVER", "เคลื่อนที่", "MOVER"),
+                guideMoveImage, scale);
             y += rowHeight;
             DrawGuideSection(new Rect(panel.x + 14f * scale, y,
                     panel.width - 28f * scale, rowHeight),
-                GuideText("DASH", "대시"), guideDashImage, scale);
+                Localized("DASH", "대시", "衝刺", "冲刺", "ダッシュ",
+                    "ESQUIVE", "SPRINT", "IMPULSO", "พุ่ง", "ARRANCADA"),
+                guideDashImage, scale);
             y += rowHeight;
             DrawGuideSection(new Rect(panel.x + 14f * scale, y,
                     panel.width - 28f * scale, rowHeight),
-                GuideText("MELEE", "근접 공격"), guideMeleeImage, scale);
+                Localized("MELEE", "근접 공격", "近戰攻擊", "近战攻击",
+                    "近接攻撃", "CORPS À CORPS", "NAHKAMPF",
+                    "CUERPO A CUERPO", "โจมตีระยะประชิด", "CORPO A CORPO"),
+                guideMeleeImage, scale);
             y += rowHeight;
             string start = guideOpen
                 ? inputMode == InputMode.Touch
-                    ? GuideText("TOUCH TO RESUME", "터치하여 계속")
+                    ? Localized("TOUCH TO RESUME", "터치하여 계속", "觸碰以繼續",
+                        "触摸以继续", "タッチして再開", "TOUCHER POUR REPRENDRE",
+                        "ZUM FORTSETZEN BERÜHREN", "TOCA PARA CONTINUAR",
+                        "แตะเพื่อเล่นต่อ", "TOQUE PARA CONTINUAR")
                     : inputMode == InputMode.Gamepad
-                        ? GuideText("PRESS A TO RESUME", "A 버튼을 눌러 계속")
-                        : GuideText("CLICK TO RESUME", "클릭하여 계속")
+                        ? Localized("PRESS A TO RESUME", "A 버튼을 눌러 계속",
+                            "按 A 繼續", "按 A 继续", "Aで再開",
+                            "A POUR REPRENDRE", "A ZUM FORTSETZEN",
+                            "A PARA CONTINUAR", "กด A เพื่อเล่นต่อ",
+                            "A PARA CONTINUAR")
+                        : Localized("CLICK TO RESUME", "클릭하여 계속",
+                            "點擊以繼續", "点击以继续", "クリックして再開",
+                            "CLIQUER POUR REPRENDRE", "KLICKEN ZUM FORTSETZEN",
+                            "CLIC PARA CONTINUAR", "คลิกเพื่อเล่นต่อ",
+                            "CLIQUE PARA CONTINUAR")
                 : inputMode == InputMode.Touch
-                    ? GuideText("TOUCH TO START", "터치하여 시작")
+                    ? Localized("TOUCH TO START", "터치하여 시작", "觸碰以開始",
+                        "触摸以开始", "タッチして開始", "TOUCHER POUR COMMENCER",
+                        "ZUM STARTEN BERÜHREN", "TOCA PARA EMPEZAR",
+                        "แตะเพื่อเริ่ม", "TOQUE PARA COMEÇAR")
                     : inputMode == InputMode.Gamepad
-                        ? GuideText("PRESS A TO START", "A 버튼을 눌러 시작")
-                        : GuideText("CLICK TO START", "클릭하여 시작");
-            GUI.Label(new Rect(panel.x + 14f * scale, y,
-                panel.width - 28f * scale, footerHeight), start, aimStyle);
+                        ? Localized("PRESS A TO START", "A 버튼을 눌러 시작",
+                            "按 A 開始", "按 A 开始", "Aで開始", "A POUR COMMENCER",
+                            "A ZUM STARTEN", "A PARA EMPEZAR", "กด A เพื่อเริ่ม",
+                            "A PARA COMEÇAR")
+                        : Localized("CLICK TO START", "클릭하여 시작", "點擊以開始",
+                            "点击以开始", "クリックして開始", "CLIQUER POUR COMMENCER",
+                            "KLICKEN ZUM STARTEN", "CLIC PARA EMPEZAR",
+                            "คลิกเพื่อเริ่ม", "CLIQUE PARA COMEÇAR");
+            Rect footer = new Rect(panel.x + 14f * scale, y,
+                panel.width - 28f * scale, footerHeight);
+            GUI.Label(footer, start, aimStyle);
+            if (!languagePanelOpen)
+                DrawGuideDismissAreas(panel, footer);
         }
 
         private void DrawGuideButton()
@@ -1904,19 +1974,160 @@ namespace CountDown
             Rect button = new Rect(safe.xMax - size - 12f,
                 Screen.height - safe.yMax + 58f, size, size);
             DrawPanel(button, new Color(.025f, .03f, .04f, .86f));
-            if (GUI.Button(button, "?", guideButtonStyle))
+            GUI.Label(button, "?", guideButtonStyle);
+            float hitSize = size * 2.5f;
+            Rect hitArea = new Rect(button.xMax - hitSize, button.y,
+                hitSize, hitSize);
+            if (GUI.Button(hitArea, GUIContent.none, GUIStyle.none))
                 SetGuideOpen(true);
         }
 
         private void SetGuideOpen(bool open)
         {
             guideOpen = open;
+            if (!open)
+                languagePanelOpen = false;
             Time.timeScale = open ? 0f : 1f;
             if (player != null && open)
             {
                 player.aiming = false;
                 ClearPlayerAimLock();
             }
+        }
+
+        private void DrawGuideDismissAreas(Rect panel, Rect footer)
+        {
+            GUIStyle invisible = GUIStyle.none;
+            if (GUI.Button(new Rect(0f, 0f, Screen.width, panel.y),
+                    GUIContent.none, invisible) ||
+                GUI.Button(new Rect(0f, panel.y, panel.x, panel.height),
+                    GUIContent.none, invisible) ||
+                GUI.Button(new Rect(panel.xMax, panel.y,
+                    Screen.width - panel.xMax, panel.height),
+                    GUIContent.none, invisible) ||
+                GUI.Button(new Rect(0f, panel.yMax, Screen.width,
+                    Screen.height - panel.yMax), GUIContent.none, invisible) ||
+                GUI.Button(footer, GUIContent.none, invisible))
+            {
+                if (awaitingStart)
+                    awaitingStart = false;
+                else
+                    SetGuideOpen(false);
+            }
+        }
+
+        private void DrawLanguageButton(Rect guidePanel, float scale)
+        {
+            Rect button = new Rect(guidePanel.xMax - 78f * scale,
+                guidePanel.y + 8f * scale, 60f * scale, 34f * scale);
+            DrawPanel(button, new Color(.08f, .16f, .2f, .96f));
+            GUI.Label(button, "[ " + LanguageCode(guideLanguage) + " ]",
+                guideButtonStyle);
+            if (!languagePanelOpen &&
+                GUI.Button(button, GUIContent.none, GUIStyle.none))
+                OpenLanguagePanel();
+        }
+
+        private void OpenLanguagePanel()
+        {
+            if (!awaitingStart && !guideOpen)
+                SetGuideOpen(true);
+            languagePanelOpen = true;
+            languageFocus = (int)guideLanguage;
+            languageAxisReady = false;
+        }
+
+        private void DrawLanguagePanel()
+        {
+            if (!languagePanelOpen) return;
+            float scale = Mathf.Clamp(Screen.height / 720f, .72f, 1.15f);
+            float width = Mathf.Min(360f * scale, Screen.safeArea.width - 30f);
+            float rowHeight = 32f * scale;
+            float height = 58f * scale + rowHeight * 10f;
+            Rect panel = new Rect((Screen.width - width) * .5f,
+                (Screen.height - height) * .5f, width, height);
+            DrawPanel(panel, new Color(.02f, .025f, .035f, .98f));
+            GUI.Label(new Rect(panel.x + 18f * scale, panel.y + 8f * scale,
+                panel.width - 72f * scale, 38f * scale),
+                Localized("LANGUAGE", "언어", "語言", "语言", "言語",
+                    "LANGUE", "SPRACHE", "IDIOMA", "ภาษา", "IDIOMA"),
+                guideTitleStyle);
+            Rect close = new Rect(panel.xMax - 46f * scale,
+                panel.y + 8f * scale, 34f * scale, 34f * scale);
+            DrawPanel(close, new Color(.16f, .08f, .09f, .96f));
+            GUI.Label(close, "X", guideButtonStyle);
+            if (GUI.Button(close, GUIContent.none, GUIStyle.none))
+                languagePanelOpen = false;
+
+            float y = panel.y + 50f * scale;
+            for (int i = 0; i < 10; i++)
+            {
+                GuideLanguage language = (GuideLanguage)i;
+                Rect row = new Rect(panel.x + 12f * scale, y,
+                    panel.width - 24f * scale, rowHeight - 2f * scale);
+                Color rowColor = i == languageFocus
+                    ? new Color(.08f, .34f, .44f, .98f)
+                    : language == guideLanguage
+                        ? new Color(.08f, .2f, .24f, .94f)
+                        : new Color(.07f, .08f, .1f, .92f);
+                DrawPanel(row, rowColor);
+                Font previousFont = guideLabelStyle.font;
+                guideLabelStyle.font = language == GuideLanguage.Thai &&
+                    guideThaiFont != null ? guideThaiFont : guideFont;
+                GUI.Label(new Rect(row.x + 12f * scale, row.y,
+                    row.width - 24f * scale, row.height),
+                    LanguageName(language), guideLabelStyle);
+                guideLabelStyle.font = previousFont;
+                if (GUI.Button(row, GUIContent.none, GUIStyle.none))
+                    SelectGuideLanguage(language);
+                y += rowHeight;
+            }
+        }
+
+        private void UpdateLanguagePanelInput()
+        {
+            if (Input.GetKeyDown(KeyCode.Escape) ||
+                Input.GetKeyDown(KeyCode.JoystickButton1))
+            {
+                languagePanelOpen = false;
+                return;
+            }
+
+            int direction = Input.GetKeyDown(KeyCode.UpArrow) ? -1 :
+                Input.GetKeyDown(KeyCode.DownArrow) ? 1 : 0;
+            float gamepadY = ReadGamepadStick(
+                "Gamepad Left X", "Gamepad Left Y").y;
+            if (Mathf.Abs(gamepadY) < .35f)
+                languageAxisReady = true;
+            else if (languageAxisReady)
+            {
+                direction = gamepadY > 0f ? -1 : 1;
+                languageAxisReady = false;
+            }
+            if (direction != 0)
+                languageFocus = (languageFocus + direction + 10) % 10;
+            if (ConfirmKeyPressed())
+                SelectGuideLanguage((GuideLanguage)languageFocus);
+        }
+
+        private void SelectGuideLanguage(GuideLanguage language)
+        {
+            guideLanguage = language;
+            languageFocus = (int)language;
+            PlayerPrefs.SetInt("CountDown.GuideLanguage", (int)language);
+            PlayerPrefs.Save();
+            ApplyGuideFont();
+            languagePanelOpen = false;
+        }
+
+        private void ApplyGuideFont()
+        {
+            Font font = guideLanguage == GuideLanguage.Thai &&
+                guideThaiFont != null ? guideThaiFont : guideFont;
+            if (font == null) return;
+            if (aimStyle != null) aimStyle.font = font;
+            if (guideTitleStyle != null) guideTitleStyle.font = font;
+            if (guideLabelStyle != null) guideLabelStyle.font = font;
         }
 
         private void DrawGuideSection(Rect rect, string label,
@@ -1947,10 +2158,62 @@ namespace CountDown
                 label, guideLabelStyle);
         }
 
-        private static string GuideText(string english, string korean)
+        private GuideLanguage LoadGuideLanguage()
         {
-            return Application.systemLanguage == SystemLanguage.Korean
-                ? korean : english;
+            if (PlayerPrefs.HasKey("CountDown.GuideLanguage"))
+                return (GuideLanguage)Mathf.Clamp(
+                    PlayerPrefs.GetInt("CountDown.GuideLanguage"), 0, 9);
+            switch (Application.systemLanguage)
+            {
+                case SystemLanguage.Korean: return GuideLanguage.Korean;
+                case SystemLanguage.ChineseTraditional:
+                    return GuideLanguage.ChineseTraditional;
+                case SystemLanguage.ChineseSimplified:
+                    return GuideLanguage.ChineseSimplified;
+                case SystemLanguage.Japanese: return GuideLanguage.Japanese;
+                case SystemLanguage.French: return GuideLanguage.French;
+                case SystemLanguage.German: return GuideLanguage.German;
+                case SystemLanguage.Spanish: return GuideLanguage.Spanish;
+                case SystemLanguage.Thai: return GuideLanguage.Thai;
+                case SystemLanguage.Portuguese:
+                    return GuideLanguage.Portuguese;
+                default: return GuideLanguage.English;
+            }
+        }
+
+        private string Localized(string english, string korean,
+            string chineseTraditional, string chineseSimplified, string japanese,
+            string french, string german, string spanish, string thai,
+            string portuguese)
+        {
+            switch (guideLanguage)
+            {
+                case GuideLanguage.Korean: return korean;
+                case GuideLanguage.ChineseTraditional: return chineseTraditional;
+                case GuideLanguage.ChineseSimplified: return chineseSimplified;
+                case GuideLanguage.Japanese: return japanese;
+                case GuideLanguage.French: return french;
+                case GuideLanguage.German: return german;
+                case GuideLanguage.Spanish: return spanish;
+                case GuideLanguage.Thai: return thai;
+                case GuideLanguage.Portuguese: return portuguese;
+                default: return english;
+            }
+        }
+
+        private static string LanguageCode(GuideLanguage language)
+        {
+            string[] codes = { "EN", "KR", "繁", "简", "JP",
+                "FR", "DE", "ES", "TH", "PT" };
+            return codes[(int)language];
+        }
+
+        private static string LanguageName(GuideLanguage language)
+        {
+            string[] names = { "English", "한국어", "繁體中文", "简体中文",
+                "日本語", "Français", "Deutsch", "Español", "ไทย",
+                "Português" };
+            return names[(int)language];
         }
 
         private void DrawAimVignette()

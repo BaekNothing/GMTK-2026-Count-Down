@@ -36,6 +36,13 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- Expanded the corner help button hit area to 2.5 times its visible size.
+- Guide panels now ignore pointer input: start or resume only from the gray
+  backdrop, the footer action, Enter, or gamepad A.
+- Added a persistent ten-language selector for English, Korean, Traditional and
+  Simplified Chinese, Japanese, French, German, Spanish, Thai, and Portuguese.
+  Keyboard or gamepad vertical input moves focus; Enter/A selects; Escape/B or
+  the close button cancels. Gamepad Y opens help and then language selection.
 - Added a top-right `?` button that pauses combat and reopens the guide at any
   time. Its footer changes from start to resume while the guide is reopened.
 - Bundled a WebGL-safe Korean guide font so labels remain visible independently

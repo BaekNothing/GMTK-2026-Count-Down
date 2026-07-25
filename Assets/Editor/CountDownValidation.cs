@@ -224,20 +224,33 @@ public static class CountDownValidation
                 BindingFlags.Instance | BindingFlags.NonPublic) != null &&
                 typeof(CountDownGame).GetMethod("DrawGuideSection",
                     BindingFlags.Instance | BindingFlags.NonPublic) != null &&
-                typeof(CountDownGame).GetMethod("GuideText",
-                    BindingFlags.Static | BindingFlags.NonPublic) != null,
+                typeof(CountDownGame).GetMethod("Localized",
+                    BindingFlags.Instance | BindingFlags.NonPublic) != null,
                 "The startup guide must provide localized labels over replaceable image frames.");
-            Require(typeof(CountDownGame).GetMethod("StartInputPressed",
+            Require(typeof(CountDownGame).GetMethod("ConfirmKeyPressed",
                 BindingFlags.Static | BindingFlags.NonPublic) != null,
                 "The control guide must hold gameplay until explicit start input.");
+            Require(typeof(CountDownGame).GetMethod("DrawGuideDismissAreas",
+                BindingFlags.Instance | BindingFlags.NonPublic) != null,
+                "Guide image frames must ignore pointer input while backdrop and footer remain actionable.");
             Require(typeof(CountDownGame).GetMethod("DrawGuideButton",
                 BindingFlags.Instance | BindingFlags.NonPublic) != null &&
                 typeof(CountDownGame).GetMethod("SetGuideOpen",
                     BindingFlags.Instance | BindingFlags.NonPublic) != null,
                 "A top-right help button must pause and reopen the guide.");
+            Require(typeof(CountDownGame).GetMethod("DrawLanguagePanel",
+                BindingFlags.Instance | BindingFlags.NonPublic) != null &&
+                typeof(CountDownGame).GetMethod("UpdateLanguagePanelInput",
+                    BindingFlags.Instance | BindingFlags.NonPublic) != null &&
+                typeof(CountDownGame).GetMethod("SelectGuideLanguage",
+                    BindingFlags.Instance | BindingFlags.NonPublic) != null,
+                "The guide requires a persistent ten-language selector.");
             Require(AssetDatabase.LoadAssetAtPath<Font>(
                     "Assets/Resources/CountDown/Fonts/GuideKorean.otf") != null,
                 "The guide requires its bundled WebGL-safe Korean font.");
+            Require(AssetDatabase.LoadAssetAtPath<Font>(
+                    "Assets/Resources/CountDown/Fonts/GuideThai.ttf") != null,
+                "The guide requires its bundled WebGL-safe Thai font.");
             Require(typeof(CountDownGame).GetMethod("DrawWorldEnemyHealth",
                 BindingFlags.Instance | BindingFlags.NonPublic) != null,
                 "Each enemy requires a world-space three-slot health display.");
