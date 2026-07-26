@@ -2131,7 +2131,7 @@ namespace CountDown
             float centeredPanelX =
                 safe.xMin + (safe.width - width) * .5f;
             float sidebarTarget =
-                Mathf.Min(420f * scale, safe.width * .4f);
+                Mathf.Min(840f * scale, safe.width * .8f);
             float panelX = Mathf.Max(safe.xMin + 12f,
                 Mathf.Min(centeredPanelX,
                     safe.xMax - width - sidebarTarget - 18f * scale));
@@ -2226,9 +2226,15 @@ namespace CountDown
                 Mathf.Max(10, Mathf.RoundToInt(14f * scale));
             guideLabelStyle.wordWrap = true;
             guideLabelStyle.normal.textColor = Color.white;
-            GUI.Label(usageRect,
-                GuideUsageText() + "\n\n" + GuideGameDescription(),
-                guideLabelStyle);
+            string usageText =
+                GuideUsageText() + "\n\n" + GuideGameDescription();
+            GUIContent usageContent = new GUIContent(usageText);
+            int minimumFontSize = Mathf.Max(8, Mathf.RoundToInt(9f * scale));
+            while (guideLabelStyle.fontSize > minimumFontSize &&
+                   guideLabelStyle.CalcHeight(usageContent, usageRect.width) >
+                   usageRect.height)
+                guideLabelStyle.fontSize--;
+            GUI.Label(usageRect, usageContent, guideLabelStyle);
             guideLabelStyle.alignment = previousAlignment;
             guideLabelStyle.fontSize = previousSize;
             guideLabelStyle.wordWrap = previousWrap;

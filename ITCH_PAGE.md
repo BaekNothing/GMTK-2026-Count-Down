@@ -36,6 +36,8 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- Doubled the target width of the external guide text column and enabled
+  automatic font shrinking so the localized copy stays inside its box.
 - Widened the guide's external instruction column and aligned its first line
   exactly with the top edge of the guide popup.
 - Moved the localized controls and game explanation outside the guide panel on
