@@ -36,6 +36,11 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- Rebalanced generated environment and UI guides toward roughly 60% white,
+  30% mid-gray, and 10% dark gray; the help backdrop now uses a dedicated
+  solid-black dim texture.
+- Removed the remaining character tint so both sheets keep their authored
+  colors, and brightened/thickened the aim line with a vivid cyan tint.
 - Removed tinting from authored floor, background, and UI textures, regenerated
   the floor guides in the monochrome palette, and replaced heart/pip health
   displays with continuous horizontal health bars.

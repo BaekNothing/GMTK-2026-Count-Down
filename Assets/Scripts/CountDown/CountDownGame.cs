@@ -72,6 +72,8 @@ namespace CountDown
         private static readonly Color ResourceWhite = Color.white;
         private static readonly Color ResourceGray =
             new Color(.74f, .74f, .74f, 1f);
+        private static readonly Color AimLineTint =
+            new Color(77f / 255f, 235f / 255f, 1f, 1f);
         private const int FuseSortingOrder = -10;
         private const int FuseFlameSortingOrder = -9;
         private const int FuseAlertSortingOrder = -8;
@@ -134,6 +136,7 @@ namespace CountDown
         private Texture2D guideDashImage;
         private Texture2D guideMeleeImage;
         private Texture2D guidePanelImage;
+        private Texture2D guideDimImage;
         private Texture2D crosshairImage;
         private Texture2D buildVersionTexture;
         private int moveTouchId = -1;
@@ -169,6 +172,8 @@ namespace CountDown
             guideMeleeImage = Resources.Load<Texture2D>("CountDown/Guide/Melee");
             guidePanelImage = Resources.Load<Texture2D>(
                 "CountDown/Sprites/GuidePanel");
+            guideDimImage = Resources.Load<Texture2D>(
+                "CountDown/Sprites/GuideDim");
             crosshairImage = Resources.Load<Texture2D>(
                 "CountDown/Sprites/Crosshair");
             guideFont = Resources.Load<Font>("CountDown/Fonts/GuideKorean");
@@ -350,7 +355,7 @@ namespace CountDown
                 spriteObject.transform.localPosition = Vector3.zero;
                 var sr = spriteObject.AddComponent<SpriteRenderer>();
                 sr.sprite = FindSprite(sprites, resourcePrefix + "_Idle_0");
-                sr.color = isPlayer ? ResourceWhite : ResourceGray;
+                sr.color = ResourceWhite;
                 float height = Mathf.Max(.01f, sr.sprite.bounds.size.y);
                 spriteObject.transform.localScale = Vector3.one * (1.72f / height);
                 body = spriteObject;
@@ -386,11 +391,12 @@ namespace CountDown
             laser.transform.SetParent(root.transform);
             laser.positionCount = 2;
             laser.useWorldSpace = true;
-            laser.material = MaterialFor(null, ResourceGray);
+            laser.material = MaterialFor(null, Color.white);
             ApplyMockTexture(laser.material, "AimLine", Vector2.one);
             laser.textureMode = LineTextureMode.Tile;
-            laser.startWidth = .018f;
-            laser.endWidth = .01f;
+            laser.startColor = laser.endColor = Color.white;
+            laser.startWidth = .024f;
+            laser.endWidth = .014f;
             laser.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 
             var fighter = new Fighter
@@ -1262,14 +1268,17 @@ namespace CountDown
 
             fighter.laser.SetPosition(0, fighter.muzzle.position);
             fighter.laser.SetPosition(1, end);
-            float width = fighter.hasTarget ? .055f : .018f;
+            float width = fighter.hasTarget ? .062f : .024f;
             if (fighter.count == 1 && fighter.hasTarget)
                 width *= Mathf.Lerp(.35f, 1.8f, Mathf.PingPong(Time.time * 8f, 1f));
             fighter.laser.startWidth = width;
             fighter.laser.endWidth = width * .55f;
-            Color beamColor = fighter.hasTarget ? fighter.accent : fighter.accent * .55f;
+            Color beamColor = fighter.hasTarget
+                ? AimLineTint
+                : new Color(AimLineTint.r, AimLineTint.g, AimLineTint.b, .78f);
             fighter.laser.startColor = beamColor;
-            fighter.laser.endColor = new Color(beamColor.r, beamColor.g, beamColor.b, .15f);
+            fighter.laser.endColor = new Color(
+                beamColor.r, beamColor.g, beamColor.b, .3f);
 
             if (fighter.firePending)
             {
@@ -1656,10 +1665,8 @@ namespace CountDown
                     Mathf.PingPong(fighter.hitFlash * 12f, 1f) > .35f ? 1f : 0f;
                 if (fighter.spriteRenderer != null)
                 {
-                    Color neutralColor = fighter.isPlayer
-                        ? ResourceWhite : ResourceGray;
-                    fighter.spriteRenderer.color = neutralColor;
-                    fighter.bodyRenderer.material.color = neutralColor;
+                    fighter.spriteRenderer.color = ResourceWhite;
+                    fighter.bodyRenderer.material.color = ResourceWhite;
                 }
                 else
                 {
@@ -2050,8 +2057,7 @@ namespace CountDown
             if ((!awaitingStart && !guideOpen) || finished || stageTransitioning)
                 return;
 
-            DrawPanel(new Rect(0f, 0f, Screen.width, Screen.height),
-                new Color(.18f, .19f, .21f, .72f));
+            DrawGuideDim();
             Rect safe = Screen.safeArea;
             float scale = Mathf.Clamp(Screen.height / 720f, .72f, 1.25f);
             float rowHeightBase = 52f + 96f * GuideImageDisplayScale;
@@ -2365,6 +2371,23 @@ namespace CountDown
                 GUI.DrawTexture(imageFrame, image, ScaleMode.ScaleToFit, true);
                 GUI.color = Color.white;
             }
+        }
+
+        private void DrawGuideDim()
+        {
+            Rect screen = new Rect(0f, 0f, Screen.width, Screen.height);
+            if (guideDimImage != null)
+            {
+                GUI.color = Color.white;
+                GUI.DrawTexture(screen, guideDimImage,
+                    ScaleMode.StretchToFill, true);
+            }
+            else
+            {
+                GUI.color = new Color(0f, 0f, 0f, .72f);
+                GUI.DrawTexture(screen, white);
+            }
+            GUI.color = Color.white;
         }
 
         private GuideLanguage LoadGuideLanguage()

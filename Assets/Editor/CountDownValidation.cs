@@ -258,6 +258,9 @@ public static class CountDownValidation
             Require(typeof(CountDownGame).GetMethod("DrawGuideDismissAreas",
                 BindingFlags.Instance | BindingFlags.NonPublic) != null,
                 "Guide image frames must ignore pointer input while backdrop and footer remain actionable.");
+            Require(typeof(CountDownGame).GetMethod("DrawGuideDim",
+                    BindingFlags.Instance | BindingFlags.NonPublic) != null,
+                "The guide backdrop must use its dedicated solid dim resource.");
             Require(typeof(CountDownGame).GetMethod("DrawGuideButton",
                 BindingFlags.Instance | BindingFlags.NonPublic) != null &&
                 typeof(CountDownGame).GetMethod("SetGuideOpen",

@@ -72,17 +72,19 @@ namespace CountDown.Editor
 
         private static void GenerateBackgroundAndUiResourceGuides()
         {
-            GenerateTile("FloorTile", GuideDark, GuideGray, false);
-            GenerateTile("WallTile", GuideDark, GuideGray, true);
+            GenerateTile("FloorTile", GuideWhite, GuideDark, false);
+            GenerateTile("WallTile", GuideWhite, GuideDark, true);
             GenerateTile("FloorMark", new Color32(0, 0, 0, 0),
                 new Color32(255, 255, 255, 190), false);
-            GeneratePanel("GuidePanel", 512, 512, GuideDark);
-            GeneratePanel("HudPanel", 256, 128, GuideDark);
-            GeneratePanel("Button", 192, 96, GuideGray);
+            GeneratePanel("GuidePanel", 512, 512, GuideWhite);
+            GeneratePanel("HudPanel", 256, 128, GuideWhite);
+            GeneratePanel("Button", 192, 96, GuideWhite);
             GeneratePanel("AimVignette", 512, 512,
                 new Color32(68, 68, 68, 190), true);
             GenerateBackgroundGuide("BackgroundFar", 1536, 512, false);
             GenerateBackgroundGuide("BackgroundNear", 1024, 256, true);
+            GenerateSolid("GuideDim", 16, 16,
+                new Color32(0, 0, 0, 184));
         }
 
         private enum MockShape { Gun, Disc, Line, Ring, Burst, Warning, Crosshair, Heart }
@@ -91,9 +93,12 @@ namespace CountDown.Editor
             Color32 detail, bool planks)
         {
             const int size = 256;
-            var texture = NewTexture(size, size, baseColor);
+            var texture = baseColor.a == 0
+                ? NewTexture(size, size, baseColor)
+                : NewPaletteTexture(size, size);
             Color32[] pixels = texture.GetPixels32();
-            DrawGuideGrid(pixels, size, size, new Color32(255, 255, 255, 80));
+            DrawGuideGrid(pixels, size, size,
+                new Color32(153, 153, 153, 180));
             int spacing = planks ? 32 : 64;
             for (int i = 0; i < size; i += spacing)
             {
@@ -166,8 +171,9 @@ namespace CountDown.Editor
         private static void GeneratePanel(string name, int width, int height,
             Color32 color, bool vignette = false)
         {
-            var texture = NewTexture(width, height,
-                vignette ? new Color32(0, 0, 0, 0) : color);
+            var texture = vignette
+                ? NewTexture(width, height, new Color32(0, 0, 0, 0))
+                : NewPaletteTexture(width, height);
             Color32[] p = texture.GetPixels32();
             DrawGuideGrid(p, width, height,
                 new Color32(153, 153, 153, 72));
@@ -199,8 +205,12 @@ namespace CountDown.Editor
             int height, bool transparent)
         {
             var texture = NewTexture(width, height, transparent
-                ? new Color32(0, 0, 0, 0)
-                : GuideDark);
+                ? new Color32(0, 0, 0, 0) : GuideWhite);
+            if (!transparent)
+            {
+                Object.DestroyImmediate(texture);
+                texture = NewPaletteTexture(width, height);
+            }
             Color32[] p = texture.GetPixels32();
             var guide = new Color32(153, 153, 153,
                 transparent ? (byte)120 : (byte)180);
@@ -238,6 +248,30 @@ namespace CountDown.Editor
             for (int i = 0; i < pixels.Length; i++) pixels[i] = color;
             texture.SetPixels32(pixels);
             return texture;
+        }
+
+        private static Texture2D NewPaletteTexture(int width, int height)
+        {
+            var texture = new Texture2D(
+                width, height, TextureFormat.RGBA32, false);
+            var pixels = new Color32[width * height];
+            const int blockSize = 24;
+            for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+            {
+                int bucket = ((x / blockSize) + (y / blockSize) * 3) % 10;
+                pixels[y * width + x] = bucket < 6
+                    ? GuideWhite : bucket < 9 ? GuideGray : GuideDark;
+            }
+            texture.SetPixels32(pixels);
+            return texture;
+        }
+
+        private static void GenerateSolid(string name, int width, int height,
+            Color32 color)
+        {
+            var texture = NewTexture(width, height, color);
+            Save(texture, OutputDirectory + "/" + name + ".png");
         }
 
         private static void Save(Texture2D texture, string path)
