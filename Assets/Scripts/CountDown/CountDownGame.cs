@@ -144,6 +144,7 @@ namespace CountDown
         private Texture2D guidePanelImage;
         private Texture2D guideDimImage;
         private Texture2D crosshairImage;
+        private Texture2D touchCircleImage;
         private Texture2D buildVersionTexture;
         private int moveTouchId = -1;
         private int aimTouchId = -1;
@@ -182,6 +183,7 @@ namespace CountDown
                 "CountDown/Sprites/GuideDim");
             crosshairImage = Resources.Load<Texture2D>(
                 "CountDown/Sprites/Crosshair");
+            touchCircleImage = CreateTouchCircleTexture();
             guideFont = Resources.Load<Font>("CountDown/Fonts/GuideKorean");
             guideLatinFont = Resources.Load<Font>("CountDown/Fonts/GuideLatin");
             guideThaiFont = Resources.Load<Font>("CountDown/Fonts/GuideThai");
@@ -1955,6 +1957,33 @@ namespace CountDown
             return texture;
         }
 
+        private static Texture2D CreateTouchCircleTexture()
+        {
+            const int size = 128;
+            var texture = new Texture2D(
+                size, size, TextureFormat.RGBA32, false)
+            {
+                name = "Generated Touch Circle",
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp
+            };
+            var pixels = new Color32[size * size];
+            Vector2 center = Vector2.one * ((size - 1) * .5f);
+            float radius = size * .48f;
+            for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                float distance = Vector2.Distance(
+                    new Vector2(x, y), center);
+                pixels[y * size + x] = distance <= radius
+                    ? new Color32(255, 255, 255, 255)
+                    : new Color32(0, 0, 0, 0);
+            }
+            texture.SetPixels32(pixels);
+            texture.Apply(false, true);
+            return texture;
+        }
+
         private void Play(string resourcePath, float fallbackFrequency, float duration, float volume)
         {
             var clip = Resources.Load<AudioClip>("CountDown/" + resourcePath);
@@ -2099,8 +2128,15 @@ namespace CountDown
             float rowHeight = rowHeightBase * scale;
             float footerHeight = 54f * scale;
             float height = 52f * scale + rowHeight * 3f + footerHeight;
+            float centeredPanelX =
+                safe.xMin + (safe.width - width) * .5f;
+            float sidebarTarget =
+                Mathf.Min(300f * scale, safe.width * .32f);
+            float panelX = Mathf.Max(safe.xMin + 12f,
+                Mathf.Min(centeredPanelX,
+                    safe.xMax - width - sidebarTarget - 18f * scale));
             Rect panel = new Rect(
-                safe.xMin + (safe.width - width) * .5f,
+                panelX,
                 Screen.height - safe.yMax + Mathf.Max(18f * scale,
                     (safe.height - height) * .5f),
                 width, height);
@@ -2168,29 +2204,36 @@ namespace CountDown
                             "คลิกเพื่อเริ่ม", "CLIQUE PARA COMEÇAR");
             Rect footer = new Rect(panel.x + 14f * scale, y,
                 panel.width - 28f * scale, footerHeight);
-            Rect startRect = new Rect(
-                footer.x, footer.y, footer.width * .46f, footer.height);
-            GUI.Label(startRect, start, aimStyle);
-            DrawGuideUsage(footer, scale);
+            GUI.Label(footer, start, aimStyle);
+            DrawGuideUsage(panel, scale);
             if (!languagePanelOpen)
                 DrawGuideDismissAreas(panel, footer);
         }
 
-        private void DrawGuideUsage(Rect footer, float scale)
+        private void DrawGuideUsage(Rect panel, float scale)
         {
-            Rect usageRect = new Rect(footer.x + footer.width * .46f,
-                footer.y, footer.width * .54f, footer.height);
+            Rect safe = Screen.safeArea;
+            float gap = 16f * scale;
+            float width = Mathf.Max(0f, safe.xMax - panel.xMax - gap);
+            float height = Mathf.Min(panel.height, 330f * scale);
+            Rect usageRect = new Rect(panel.xMax + gap,
+                panel.yMax - height, width, height);
             TextAnchor previousAlignment = guideLabelStyle.alignment;
             int previousSize = guideLabelStyle.fontSize;
             bool previousWrap = guideLabelStyle.wordWrap;
-            guideLabelStyle.alignment = TextAnchor.MiddleRight;
+            Color previousColor = guideLabelStyle.normal.textColor;
+            guideLabelStyle.alignment = TextAnchor.LowerLeft;
             guideLabelStyle.fontSize =
-                Mathf.Max(8, Mathf.RoundToInt(10f * scale));
+                Mathf.Max(10, Mathf.RoundToInt(14f * scale));
             guideLabelStyle.wordWrap = true;
-            GUI.Label(usageRect, GuideUsageText(), guideLabelStyle);
+            guideLabelStyle.normal.textColor = Color.white;
+            GUI.Label(usageRect,
+                GuideUsageText() + "\n\n" + GuideGameDescription(),
+                guideLabelStyle);
             guideLabelStyle.alignment = previousAlignment;
             guideLabelStyle.fontSize = previousSize;
             guideLabelStyle.wordWrap = previousWrap;
+            guideLabelStyle.normal.textColor = previousColor;
         }
 
         private string GuideUsageText()
@@ -2217,6 +2260,33 @@ namespace CountDown
                     return "KR: IDIOMA  X: FECHAR\nFUNDO: INICIAR / CONTINUAR";
                 default:
                     return "KR: LANGUAGE  X: CLOSE\nBACKDROP: START / RESUME";
+            }
+        }
+
+        private string GuideGameDescription()
+        {
+            switch (guideLanguage)
+            {
+                case GuideLanguage.Korean:
+                    return "\uC870\uC791\n\uC67C\uCABD: \uC774\uB3D9 / \uC624\uB978\uCABD: \uC870\uC900\n\uC870\uC900 \uD574\uC81C: \uB300\uC2DC\n\uADFC\uC811 \uACF5\uACA9: \uC790\uB3D9\n\n\uAC8C\uC784\n\uC870\uC900\uD558\uBA70 \uCE74\uC6B4\uD2B8\uB97C \uC904\uC774\uC138\uC694.\n0\uC774 \uB418\uBA74 \uBC1C\uC0AC\uD569\uB2C8\uB2E4.\n\uC801\uC758 \uC870\uC900\uC120\uC744 \uD53C\uD558\uC138\uC694.";
+                case GuideLanguage.ChineseTraditional:
+                    return "\u64CD\u4F5C\n\u5DE6\u5074\uFF1A\u79FB\u52D5 / \u53F3\u5074\uFF1A\u7784\u6E96\n\u653E\u958B\u7784\u6E96\uFF1A\u885D\u523A\n\u8FD1\u6230\uFF1A\u81EA\u52D5\n\n\u904A\u6232\n\u6301\u7E8C\u7784\u6E96\u4EE5\u5012\u6578\u3002\n\u5230 0 \u6642\u958B\u706B\u3002\n\u8EB2\u958B\u6575\u4EBA\u7684\u7784\u6E96\u7DDA\u3002";
+                case GuideLanguage.ChineseSimplified:
+                    return "\u64CD\u4F5C\n\u5DE6\u4FA7\uFF1A\u79FB\u52A8 / \u53F3\u4FA7\uFF1A\u7784\u51C6\n\u677E\u5F00\u7784\u51C6\uFF1A\u51B2\u523A\n\u8FD1\u6218\uFF1A\u81EA\u52A8\n\n\u6E38\u620F\n\u6301\u7EED\u7784\u51C6\u4EE5\u5012\u8BA1\u65F6\u3002\n\u5230 0 \u65F6\u5F00\u706B\u3002\n\u8EB2\u5F00\u654C\u4EBA\u7684\u7784\u51C6\u7EBF\u3002";
+                case GuideLanguage.Japanese:
+                    return "\u64CD\u4F5C\n\u5DE6\uFF1A\u79FB\u52D5 / \u53F3\uFF1A\u7167\u6E96\n\u7167\u6E96\u89E3\u9664\uFF1A\u30C0\u30C3\u30B7\u30E5\n\u8FD1\u63A5\uFF1A\u81EA\u52D5\n\n\u30B2\u30FC\u30E0\n\u7167\u6E96\u3057\u3066\u30AB\u30A6\u30F3\u30C8\u3092\u6E1B\u3089\u3059\u3002\n0 \u3067\u767A\u5C04\u3002\n\u6575\u306E\u7167\u6E96\u7DDA\u3092\u907F\u3051\u308B\u3002";
+                case GuideLanguage.French:
+                    return "COMMANDES\nGAUCHE : BOUGER / DROITE : VISER\nRELACHER : ESQUIVE\nMELEE : AUTO\n\nJEU\nVISEZ POUR REDUIRE LE COMPTE.\nA ZERO, VOUS TIREZ.\nEVITEZ LES LIGNES ENNEMIES.";
+                case GuideLanguage.German:
+                    return "STEUERUNG\nLINKS: BEWEGEN / RECHTS: ZIELEN\nLOSLASSEN: SPRINT\nNAHKAMPF: AUTO\n\nSPIEL\nZIELEN SENKT DEN COUNTDOWN.\nBEI NULL WIRD GESCHOSSEN.\nFEINDLICHE ZIELLINIEN MEIDEN.";
+                case GuideLanguage.Spanish:
+                    return "CONTROLES\nIZQ.: MOVER / DER.: APUNTAR\nSOLTAR: ESQUIVA\nCUERPO A CUERPO: AUTO\n\nJUEGO\nAPUNTA PARA BAJAR LA CUENTA.\nAL LLEGAR A CERO, DISPARAS.\nEVITA LAS LINEAS ENEMIGAS.";
+                case GuideLanguage.Thai:
+                    return "\u0E01\u0E32\u0E23\u0E04\u0E27\u0E1A\u0E04\u0E38\u0E21\n\u0E0B\u0E49\u0E32\u0E22: \u0E40\u0E04\u0E25\u0E37\u0E48\u0E2D\u0E19\u0E17\u0E35\u0E48 / \u0E02\u0E27\u0E32: \u0E40\u0E25\u0E47\u0E07\n\u0E1B\u0E25\u0E48\u0E2D\u0E22: \u0E1E\u0E38\u0E48\u0E07\n\u0E42\u0E08\u0E21\u0E15\u0E35\u0E43\u0E01\u0E25\u0E49: \u0E2D\u0E31\u0E15\u0E42\u0E19\u0E21\u0E31\u0E15\u0E34\n\n\u0E40\u0E01\u0E21\n\u0E40\u0E25\u0E47\u0E07\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E25\u0E14\u0E40\u0E27\u0E25\u0E32\n\u0E40\u0E21\u0E37\u0E48\u0E2D\u0E16\u0E36\u0E07 0 \u0E08\u0E30\u0E22\u0E34\u0E07\n\u0E2B\u0E25\u0E1A\u0E40\u0E2A\u0E49\u0E19\u0E40\u0E25\u0E47\u0E07\u0E02\u0E2D\u0E07\u0E28\u0E31\u0E15\u0E23\u0E39";
+                case GuideLanguage.Portuguese:
+                    return "CONTROLES\nESQ.: MOVER / DIR.: MIRAR\nSOLTAR: ARRANCADA\nCORPO A CORPO: AUTO\n\nJOGO\nMIRE PARA REDUZIR A CONTAGEM.\nAO CHEGAR A ZERO, VOCE ATIRA.\nEVITE AS LINHAS INIMIGAS.";
+                default:
+                    return "CONTROLS\nLEFT: MOVE / RIGHT: AIM\nRELEASE AIM: DASH\nMELEE: AUTOMATIC\n\nGAME\nKEEP AIMING TO COUNT DOWN.\nZERO FIRES YOUR SHOT.\nDODGE ENEMY AIM LINES.";
             }
         }
 
@@ -2655,16 +2725,17 @@ namespace CountDown
         private void DrawTouchControls()
         {
             if (inputMode != InputMode.Touch || !touchInterfaceDetected) return;
+            float diameter = CurrentTouchStickRadius() * 2f;
             Vector2 leftCenter = new Vector2(
-                Screen.width * .125f, Screen.height * .125f);
+                Screen.width * .125f, Screen.height * .125f + diameter);
             Vector2 rightCenter = new Vector2(
-                Screen.width * .875f, Screen.height * .125f);
-            DrawStick(moveTouchId >= 0 ? moveTouchOrigin : leftCenter,
-                moveTouchId >= 0 ? moveTouchPosition : leftCenter, "MOVE");
-            DrawStick(aimTouchId >= 0 ? aimTouchOrigin :
-                    rightCenter,
-                aimTouchId >= 0 ? aimTouchPosition :
-                    rightCenter, "AIM");
+                Screen.width * .875f, Screen.height * .125f + diameter);
+            Vector2 moveOffset = moveTouchId >= 0
+                ? moveTouchPosition - moveTouchOrigin : Vector2.zero;
+            Vector2 aimOffset = aimTouchId >= 0
+                ? aimTouchPosition - aimTouchOrigin : Vector2.zero;
+            DrawStick(leftCenter, leftCenter + moveOffset, "MOVE");
+            DrawStick(rightCenter, rightCenter + aimOffset, "AIM");
         }
 
         private string InputHelpText()
@@ -2686,12 +2757,13 @@ namespace CountDown
             GUI.color = new Color(
                 68f / 255f, 68f / 255f, 68f / 255f, .68f);
             GUI.DrawTexture(new Rect(origin.x - radius, origin.y - radius,
-                radius * 2f, radius * 2f), white);
+                radius * 2f, radius * 2f), touchCircleImage);
             GUI.color = new Color(
                 153f / 255f, 153f / 255f, 153f / 255f, .92f);
             float knobRadius = radius * .38f;
             GUI.DrawTexture(new Rect(position.x - knobRadius,
-                position.y - knobRadius, knobRadius * 2f, knobRadius * 2f), white);
+                position.y - knobRadius, knobRadius * 2f, knobRadius * 2f),
+                touchCircleImage);
             GUI.color = Color.white;
             GUI.Label(new Rect(origin.x - radius, origin.y + radius + 4f,
                     radius * 2f, 24f),

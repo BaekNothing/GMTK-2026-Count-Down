@@ -36,9 +36,12 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
-- Added localized usage instructions to the guide footer, enlarged mobile
-  virtual sticks to responsive quarter-screen corner regions after touch
-  detection, and tinted dead character sprites #444444.
+- Moved the localized controls and game explanation outside the guide panel on
+  its lower-right side, aligned the final line with the panel bottom, raised
+  both touch sticks by one full stick diameter, and made both stick elements round.
+- Added localized usage instructions beside the guide, enlarged mobile virtual
+  sticks to responsive quarter-screen corner regions after touch detection,
+  and tinted dead character sprites #444444.
 - Added an explicit gray X button immediately to the right of the guide
   language selector for starting or resuming without using the footer.
 - Split procedural aim lines by team with vivid green for the player and red
