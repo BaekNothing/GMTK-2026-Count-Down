@@ -36,8 +36,10 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
-- Authored resource colors now render without RGB tinting, and the three
-  detailed control-guide images are 1.8 times larger for readability.
+- Restored the original background and UI treatment, moved gameplay art to a
+  neutral white-and-gray palette, and tightened fuse links into a continuous wick.
+- Enlarged the three detailed control-guide images by another 1.3 times and
+  moved each title into its own row so it never overlaps the artwork.
 - Death animations now play once and hold their final frame.
 - Added replaceable framed art guides for the arena floor and walls, layered
   near/far forest backgrounds, gun and aim visuals, combat effects, HUD,
@@ -71,10 +73,10 @@ The distance from each initial touch point controls stick strength.
   time. Its footer changes from start to resume while the guide is reopened.
 - Bundled a WebGL-safe Korean guide font so labels remain visible independently
   of browser-installed fonts.
-- Reworked the startup guide into three thick, single-row image frames for
-  movement, dash, and melee. Each frame accepts a replaceable resource image
-  while its localized label remains an engine-rendered upper-left overlay.
-- Shortened every gun fuse to 65% of its previous spatial length.
+- Reworked the startup guide into three large image sections for movement,
+  dash, and melee. Each section accepts a replaceable resource image and keeps
+  its localized title in a separate engine-rendered row above the artwork.
+- Tightened every gun fuse so adjacent wick segments remain visually connected.
 - Added a three-slot remaining-health display above every enemy.
 - Added a localized startup control card with an explicit touch/click/button
   start prompt, opaque content, and a translucent background. Combat waits

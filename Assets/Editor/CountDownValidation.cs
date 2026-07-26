@@ -191,8 +191,8 @@ public static class CountDownValidation
             Require(HasConstant("FuseSegmentScale", .56f) &&
                 HasConstant("FuseFlameScale", .48f),
                 "The fuse wick and flame effects must render at double size.");
-            Require(HasConstant("FuseLinkLength", .104f),
-                "The fuse must use 65 percent of its previous spatial length.");
+            Require(HasConstant("FuseLinkLength", .075f),
+                "Fuse segments must overlap enough to form a continuous wick.");
             Require(HasConstant("FuseSegmentCount", 15),
                 "Fuse length must support one wick segment per starting count.");
             Require(HasConstant("FuseSortingOrder", -10) &&
@@ -263,8 +263,8 @@ public static class CountDownValidation
                 typeof(CountDownGame).GetMethod("SetGuideOpen",
                     BindingFlags.Instance | BindingFlags.NonPublic) != null,
                 "A top-right help button must pause and reopen the guide.");
-            Require(HasConstant("GuideImageDisplayScale", 1.8f),
-                "Guide detail resources must render at 1.8 times their previous size.");
+            Require(HasConstant("GuideImageDisplayScale", 2.34f),
+                "Guide detail resources must render 1.3 times larger than the previous layout.");
             Require(typeof(CountDownGame).GetMethod("DrawLanguagePanel",
                 BindingFlags.Instance | BindingFlags.NonPublic) != null &&
                 typeof(CountDownGame).GetMethod("UpdateLanguagePanelInput",

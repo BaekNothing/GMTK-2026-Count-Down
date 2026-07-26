@@ -63,12 +63,15 @@ namespace CountDown
         private const float SpriteFramesPerSecond = 2f;
         private const int DeathAnimationFrameCount = 4;
         private const int FuseSegmentCount = EnemyStageOneMaxCount;
-        private const float FuseLinkLength = .104f;
+        private const float FuseLinkLength = .075f;
         private const float FuseSegmentScale = .56f;
         private const float FuseFlameScale = .48f;
         private const float FuseFlameFramesPerSecond = 6f;
         private const float FuseAlertFramesPerSecond = 5f;
-        private const float GuideImageDisplayScale = 1.8f;
+        private const float GuideImageDisplayScale = 2.34f;
+        private static readonly Color ResourceWhite = Color.white;
+        private static readonly Color ResourceGray =
+            new Color(.74f, .74f, .74f, 1f);
         private const int FuseSortingOrder = -10;
         private const int FuseFlameSortingOrder = -9;
         private const int FuseAlertSortingOrder = -8;
@@ -347,7 +350,7 @@ namespace CountDown
                 spriteObject.transform.localPosition = Vector3.zero;
                 var sr = spriteObject.AddComponent<SpriteRenderer>();
                 sr.sprite = FindSprite(sprites, resourcePrefix + "_Idle_0");
-                sr.color = Color.white;
+                sr.color = isPlayer ? ResourceWhite : ResourceGray;
                 float height = Mathf.Max(.01f, sr.sprite.bounds.size.y);
                 spriteObject.transform.localScale = Vector3.one * (1.72f / height);
                 body = spriteObject;
@@ -371,7 +374,7 @@ namespace CountDown
             gun.transform.localPosition = new Vector3(0f, 0f, .38f);
             gun.transform.localScale = new Vector3(.16f, .16f, .78f);
             Renderer gunRenderer = gun.GetComponent<Renderer>();
-            gunRenderer.material = MaterialFor(null, Color.white);
+            gunRenderer.material = MaterialFor(null, ResourceGray);
             ApplyMockTexture(gunRenderer.material, "Gun", Vector2.one);
             Destroy(gun.GetComponent<Collider>());
 
@@ -383,7 +386,7 @@ namespace CountDown
             laser.transform.SetParent(root.transform);
             laser.positionCount = 2;
             laser.useWorldSpace = true;
-            laser.material = MaterialFor(null, color);
+            laser.material = MaterialFor(null, ResourceGray);
             ApplyMockTexture(laser.material, "AimLine", Vector2.one);
             laser.textureMode = LineTextureMode.Tile;
             laser.startWidth = .018f;
@@ -488,7 +491,7 @@ namespace CountDown
                 segment.transform.SetParent(fighter.root, true);
                 var renderer = segment.AddComponent<SpriteRenderer>();
                 renderer.sprite = segmentSprite;
-                renderer.color = Color.white;
+                renderer.color = ResourceGray;
                 renderer.sortingOrder = FuseSortingOrder;
                 segment.transform.localScale = Vector3.one * FuseSegmentScale;
                 fighter.fuseSegments[i] = renderer;
@@ -621,7 +624,6 @@ namespace CountDown
             if (texture == null || material == null) return;
             material.mainTexture = texture;
             material.mainTextureScale = scale;
-            material.color = Color.white;
         }
 
         private void CreateArenaBackground()
@@ -1654,8 +1656,10 @@ namespace CountDown
                     Mathf.PingPong(fighter.hitFlash * 12f, 1f) > .35f ? 1f : 0f;
                 if (fighter.spriteRenderer != null)
                 {
-                    fighter.spriteRenderer.color = Color.white;
-                    fighter.bodyRenderer.material.color = Color.white;
+                    Color neutralColor = fighter.isPlayer
+                        ? ResourceWhite : ResourceGray;
+                    fighter.spriteRenderer.color = neutralColor;
+                    fighter.bodyRenderer.material.color = neutralColor;
                 }
                 else
                 {
@@ -2050,8 +2054,12 @@ namespace CountDown
                 new Color(.18f, .19f, .21f, .72f));
             Rect safe = Screen.safeArea;
             float scale = Mathf.Clamp(Screen.height / 720f, .72f, 1.25f);
+            float rowHeightBase = 52f + 96f * GuideImageDisplayScale;
+            float panelHeightBase = 52f + rowHeightBase * 3f + 54f;
+            scale = Mathf.Min(scale,
+                Mathf.Max(.5f, (safe.height - 24f) / panelHeightBase));
             float width = Mathf.Min(520f * scale, safe.width - 24f);
-            float rowHeight = (96f * GuideImageDisplayScale + 16f) * scale;
+            float rowHeight = rowHeightBase * scale;
             float footerHeight = 54f * scale;
             float height = 52f * scale + rowHeight * 3f + footerHeight;
             Rect panel = new Rect(
@@ -2334,20 +2342,9 @@ namespace CountDown
             Texture2D image, float scale)
         {
             DrawPanel(rect, new Color(.08f, .095f, .12f, .78f));
-            Rect imageFrame = new Rect(
-                rect.x + 8f * scale,
-                rect.y + 8f * scale,
-                rect.width - 16f * scale,
-                rect.height - 16f * scale);
-            DrawPanel(imageFrame, new Color(.025f, .03f, .04f, .72f));
-            if (image != null)
-            {
-                GUI.color = Color.white;
-                GUI.DrawTexture(imageFrame, image, ScaleMode.ScaleToFit, true);
-            }
             float labelWidth = Mathf.Min(156f * scale, rect.width * .42f);
             Rect labelRect = new Rect(rect.x + 14f * scale,
-                rect.y + 12f * scale, labelWidth, 30f * scale);
+                rect.y + 8f * scale, labelWidth, 30f * scale);
             DrawPanel(labelRect, new Color(.06f, .12f, .16f, .94f));
             GUI.color = new Color(.3f, .82f, 1f);
             GUI.DrawTexture(new Rect(labelRect.x, labelRect.y,
@@ -2356,6 +2353,18 @@ namespace CountDown
             GUI.Label(new Rect(labelRect.x + 12f * scale, labelRect.y,
                 labelRect.width - 14f * scale, labelRect.height),
                 label, guideLabelStyle);
+            Rect imageFrame = new Rect(
+                rect.x + 8f * scale,
+                rect.y + 44f * scale,
+                rect.width - 16f * scale,
+                rect.height - 52f * scale);
+            DrawPanel(imageFrame, new Color(.025f, .03f, .04f, .72f));
+            if (image != null)
+            {
+                GUI.color = ResourceGray;
+                GUI.DrawTexture(imageFrame, image, ScaleMode.ScaleToFit, true);
+                GUI.color = Color.white;
+            }
         }
 
         private GuideLanguage LoadGuideLanguage()
@@ -2679,7 +2688,7 @@ namespace CountDown
 
         private void DrawPanel(Rect rect, Color color)
         {
-            GUI.color = guidePanelImage != null ? Color.white : color;
+            GUI.color = color;
             GUI.DrawTexture(rect, guidePanelImage != null ? guidePanelImage : white,
                 ScaleMode.StretchToFill, true);
             GUI.color = Color.white;
