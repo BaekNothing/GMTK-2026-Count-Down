@@ -2131,7 +2131,7 @@ namespace CountDown
             float centeredPanelX =
                 safe.xMin + (safe.width - width) * .5f;
             float sidebarTarget =
-                Mathf.Min(300f * scale, safe.width * .32f);
+                Mathf.Min(420f * scale, safe.width * .4f);
             float panelX = Mathf.Max(safe.xMin + 12f,
                 Mathf.Min(centeredPanelX,
                     safe.xMax - width - sidebarTarget - 18f * scale));
@@ -2215,14 +2215,13 @@ namespace CountDown
             Rect safe = Screen.safeArea;
             float gap = 16f * scale;
             float width = Mathf.Max(0f, safe.xMax - panel.xMax - gap);
-            float height = Mathf.Min(panel.height, 330f * scale);
             Rect usageRect = new Rect(panel.xMax + gap,
-                panel.yMax - height, width, height);
+                panel.y, width, panel.height);
             TextAnchor previousAlignment = guideLabelStyle.alignment;
             int previousSize = guideLabelStyle.fontSize;
             bool previousWrap = guideLabelStyle.wordWrap;
             Color previousColor = guideLabelStyle.normal.textColor;
-            guideLabelStyle.alignment = TextAnchor.LowerLeft;
+            guideLabelStyle.alignment = TextAnchor.UpperLeft;
             guideLabelStyle.fontSize =
                 Mathf.Max(10, Mathf.RoundToInt(14f * scale));
             guideLabelStyle.wordWrap = true;

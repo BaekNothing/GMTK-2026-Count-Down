@@ -36,6 +36,8 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- Widened the guide's external instruction column and aligned its first line
+  exactly with the top edge of the guide popup.
 - Moved the localized controls and game explanation outside the guide panel on
   its lower-right side, aligned the final line with the panel bottom, raised
   both touch sticks by one full stick diameter, and made both stick elements round.
