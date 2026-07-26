@@ -36,6 +36,8 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- Authored resource colors now render without RGB tinting, and the three
+  detailed control-guide images are 1.8 times larger for readability.
 - Death animations now play once and hold their final frame.
 - Added replaceable framed art guides for the arena floor and walls, layered
   near/far forest backgrounds, gun and aim visuals, combat effects, HUD,
@@ -94,7 +96,7 @@ The distance from each initial touch point controls stick strength.
   starting count, then shrinks smoothly as the countdown advances.
 - Player and enemy countdowns now advance whenever they aim, even if the laser
   is not currently touching an opponent.
-- The player now dims during the 1.5-second post-melee movement lock.
+- The player remains movement-locked for 1.5 seconds after melee.
 - Pulling the camera back 15% gives the wide-screen arena more breathing room.
 - Melee now has a 1.5-second movement recovery and hits 10% beyond its visible
   trigger range.

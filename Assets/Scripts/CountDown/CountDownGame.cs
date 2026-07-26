@@ -68,6 +68,7 @@ namespace CountDown
         private const float FuseFlameScale = .48f;
         private const float FuseFlameFramesPerSecond = 6f;
         private const float FuseAlertFramesPerSecond = 5f;
+        private const float GuideImageDisplayScale = 1.8f;
         private const int FuseSortingOrder = -10;
         private const int FuseFlameSortingOrder = -9;
         private const int FuseAlertSortingOrder = -8;
@@ -369,7 +370,9 @@ namespace CountDown
             gun.transform.SetParent(pivot);
             gun.transform.localPosition = new Vector3(0f, 0f, .38f);
             gun.transform.localScale = new Vector3(.16f, .16f, .78f);
-            gun.GetComponent<Renderer>().material = MaterialFor("Materials/Gun", new Color(.11f, .115f, .12f));
+            Renderer gunRenderer = gun.GetComponent<Renderer>();
+            gunRenderer.material = MaterialFor(null, Color.white);
+            ApplyMockTexture(gunRenderer.material, "Gun", Vector2.one);
             Destroy(gun.GetComponent<Collider>());
 
             var muzzle = NewObject("Muzzle").transform;
@@ -429,7 +432,7 @@ namespace CountDown
             fighter.aimLockMarker.sprite =
                 Resources.Load<Sprite>("CountDown/Sprites/AimLock") ??
                 CreateAimLockPlaceholderSprite();
-            fighter.aimLockMarker.color = new Color(.35f, 1f, .72f, .62f);
+            fighter.aimLockMarker.color = new Color(1f, 1f, 1f, .62f);
             fighter.aimLockMarker.sortingOrder = 32;
             fighter.aimLockMarker.enabled = false;
         }
@@ -485,7 +488,7 @@ namespace CountDown
                 segment.transform.SetParent(fighter.root, true);
                 var renderer = segment.AddComponent<SpriteRenderer>();
                 renderer.sprite = segmentSprite;
-                renderer.color = Color.Lerp(fighter.accent, new Color(.42f, .25f, .12f), .62f);
+                renderer.color = Color.white;
                 renderer.sortingOrder = FuseSortingOrder;
                 segment.transform.localScale = Vector3.one * FuseSegmentScale;
                 fighter.fuseSegments[i] = renderer;
@@ -618,6 +621,7 @@ namespace CountDown
             if (texture == null || material == null) return;
             material.mainTexture = texture;
             material.mainTextureScale = scale;
+            material.color = Color.white;
         }
 
         private void CreateArenaBackground()
@@ -1648,17 +1652,25 @@ namespace CountDown
             {
                 float flash = fighter.hitFlash > 0f &&
                     Mathf.PingPong(fighter.hitFlash * 12f, 1f) > .35f ? 1f : 0f;
-                Color presentationColor = fighter.baseBodyColor;
-                if (fighter.isPlayer && Time.time < fighter.stunnedUntil)
+                if (fighter.spriteRenderer != null)
                 {
-                    presentationColor = new Color(
-                        presentationColor.r * PlayerMovementLockedBrightness,
-                        presentationColor.g * PlayerMovementLockedBrightness,
-                        presentationColor.b * PlayerMovementLockedBrightness,
-                        presentationColor.a);
+                    fighter.spriteRenderer.color = Color.white;
+                    fighter.bodyRenderer.material.color = Color.white;
                 }
-                fighter.bodyRenderer.material.color = Color.Lerp(
-                    presentationColor, Color.white, flash);
+                else
+                {
+                    Color presentationColor = fighter.baseBodyColor;
+                    if (fighter.isPlayer && Time.time < fighter.stunnedUntil)
+                    {
+                        presentationColor = new Color(
+                            presentationColor.r * PlayerMovementLockedBrightness,
+                            presentationColor.g * PlayerMovementLockedBrightness,
+                            presentationColor.b * PlayerMovementLockedBrightness,
+                            presentationColor.a);
+                    }
+                    fighter.bodyRenderer.material.color = Color.Lerp(
+                        presentationColor, Color.white, flash);
+                }
                 fighter.bodyRenderer.enabled = !(fighter.hitFlash > .35f &&
                     fighter.hitFlash < .75f);
             }
@@ -2039,7 +2051,7 @@ namespace CountDown
             Rect safe = Screen.safeArea;
             float scale = Mathf.Clamp(Screen.height / 720f, .72f, 1.25f);
             float width = Mathf.Min(520f * scale, safe.width - 24f);
-            float rowHeight = 112f * scale;
+            float rowHeight = (96f * GuideImageDisplayScale + 16f) * scale;
             float footerHeight = 54f * scale;
             float height = 52f * scale + rowHeight * 3f + footerHeight;
             Rect panel = new Rect(
@@ -2626,16 +2638,17 @@ namespace CountDown
                 mouse = new Vector2(aimTouchPosition.x, Screen.height - aimTouchPosition.y);
             else
                 mouse = new Vector2(mouseAimPosition.x, Screen.height - mouseAimPosition.y);
-            Color color = player.hasTarget && player.aiming
-                ? new Color(.3f, 1f, .62f) : new Color(1f, 1f, 1f, .75f);
-            GUI.color = color;
             if (crosshairImage != null)
             {
+                GUI.color = Color.white;
                 GUI.DrawTexture(new Rect(mouse.x - 18f, mouse.y - 18f, 36f, 36f),
                     crosshairImage, ScaleMode.ScaleToFit, true);
                 GUI.color = Color.white;
                 return;
             }
+            GUI.color = player.hasTarget && player.aiming
+                ? new Color(.3f, 1f, .62f)
+                : new Color(1f, 1f, 1f, .75f);
             GUI.DrawTexture(new Rect(mouse.x - 13f, mouse.y - 1f, 9f, 2f), white);
             GUI.DrawTexture(new Rect(mouse.x + 4f, mouse.y - 1f, 9f, 2f), white);
             GUI.DrawTexture(new Rect(mouse.x - 1f, mouse.y - 13f, 2f, 9f), white);
@@ -2649,9 +2662,14 @@ namespace CountDown
             float cell = (rect.width - gap * 2f) / 3f;
             for (int i = 0; i < 3; i++)
             {
-                GUI.color = i < health
-                    ? (playerSide ? new Color(.12f, .72f, 1f) : new Color(1f, .25f, .18f))
-                    : new Color(.18f, .19f, .2f);
+                bool hasResource = healthPipImage != null;
+                GUI.color = hasResource
+                    ? new Color(1f, 1f, 1f, i < health ? 1f : .22f)
+                    : i < health
+                        ? (playerSide
+                            ? new Color(.12f, .72f, 1f)
+                            : new Color(1f, .25f, .18f))
+                        : new Color(.18f, .19f, .2f);
                 GUI.DrawTexture(new Rect(rect.x + i * (cell + gap), rect.y,
                     cell, rect.height), healthPipImage != null ? healthPipImage : white,
                     ScaleMode.ScaleToFit, true);
@@ -2661,7 +2679,7 @@ namespace CountDown
 
         private void DrawPanel(Rect rect, Color color)
         {
-            GUI.color = color;
+            GUI.color = guidePanelImage != null ? Color.white : color;
             GUI.DrawTexture(rect, guidePanelImage != null ? guidePanelImage : white,
                 ScaleMode.StretchToFill, true);
             GUI.color = Color.white;
