@@ -280,6 +280,11 @@ public static class CountDownValidation
             Require(typeof(CountDownGame).GetMethod("DrawGuideCloseButton",
                     BindingFlags.Instance | BindingFlags.NonPublic) != null,
                 "The guide requires an explicit close button beside language.");
+            Require(typeof(CountDownGame).GetMethod("DrawGuideUsage",
+                    BindingFlags.Instance | BindingFlags.NonPublic) != null &&
+                typeof(CountDownGame).GetMethod("GuideUsageText",
+                    BindingFlags.Instance | BindingFlags.NonPublic) != null,
+                "The guide requires localized usage instructions.");
             Require(HasConstant("GuideImageDisplayScale", 2.34f),
                 "Guide detail resources must render 1.3 times larger than the previous layout.");
             Require(typeof(CountDownGame).GetMethod("DrawLanguagePanel",
@@ -312,6 +317,12 @@ public static class CountDownValidation
             Require(typeof(CountDownGame).GetMethod("DrawOutlinedLabel",
                     BindingFlags.Static | BindingFlags.NonPublic) != null,
                 "World countdown numbers require a dark contrast outline.");
+            Require(typeof(CountDownGame).GetMethod("CurrentTouchStickRadius",
+                    BindingFlags.Static | BindingFlags.NonPublic) != null,
+                "Touch controls require responsive quarter-screen sizing.");
+            Require(typeof(CountDownGame).GetField("DeadTint",
+                    BindingFlags.Static | BindingFlags.NonPublic) != null,
+                "Dead character sprites require a dedicated gray tint.");
             Require(typeof(CountDownGame).GetMethod("CreateBuildVersionTexture",
                 BindingFlags.Static | BindingFlags.NonPublic) != null,
                 "Build version text must use an embedded WebGL-safe bitmap font.");

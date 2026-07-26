@@ -74,6 +74,8 @@ namespace CountDown
             new Color(.74f, .74f, .74f, 1f);
         private static readonly Color TextDark =
             new Color(.13f, .13f, .13f, 1f);
+        private static readonly Color DeadTint =
+            new Color(68f / 255f, 68f / 255f, 68f / 255f, 1f);
         private static readonly Color PlayerAimLineColor =
             new Color(77f / 255f, 1f, 136f / 255f, 1f);
         private static readonly Color EnemyAimLineColor =
@@ -154,8 +156,8 @@ namespace CountDown
         private Vector2 mouseAimPosition;
         private Vector2 aimDirection = Vector2.up;
         private bool touchAiming;
+        private bool touchInterfaceDetected;
         private InputMode inputMode = InputMode.Mouse;
-        private const float TouchStickRadius = 72f;
         private const float EnemyTurnSpeed = 63f;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -848,6 +850,7 @@ namespace CountDown
         {
             if (Input.touchCount > 0)
             {
+                touchInterfaceDetected = true;
                 inputMode = InputMode.Touch;
                 return;
             }
@@ -909,6 +912,7 @@ namespace CountDown
             touchMove = Vector2.zero;
             touchAim = Vector2.zero;
             touchAiming = false;
+            touchInterfaceDetected = false;
             inputMode = InputMode.Mouse;
             aimDirection = Vector2.up;
             mouseAimPosition = new Vector2(Screen.width * .5f, Screen.height * .5f);
@@ -948,7 +952,8 @@ namespace CountDown
                     {
                         moveTouchPosition = touch.position;
                         touchMove = Vector2.ClampMagnitude(
-                            (moveTouchPosition - moveTouchOrigin) / TouchStickRadius, 1f);
+                            (moveTouchPosition - moveTouchOrigin) /
+                            CurrentTouchStickRadius(), 1f);
                     }
                 }
                 if (touch.fingerId == aimTouchId)
@@ -958,7 +963,8 @@ namespace CountDown
                     {
                         aimTouchPosition = touch.position;
                         touchAim = Vector2.ClampMagnitude(
-                            (aimTouchPosition - aimTouchOrigin) / TouchStickRadius, 1f);
+                            (aimTouchPosition - aimTouchOrigin) /
+                            CurrentTouchStickRadius(), 1f);
                         touchAiming = true;
                     }
                 }
@@ -1689,7 +1695,8 @@ namespace CountDown
                     Mathf.PingPong(fighter.hitFlash * 12f, 1f) > .35f ? 1f : 0f;
                 if (fighter.spriteRenderer != null)
                 {
-                    fighter.spriteRenderer.color = ResourceWhite;
+                    fighter.spriteRenderer.color =
+                        fighter.dead ? DeadTint : ResourceWhite;
                     fighter.bodyRenderer.material.color = ResourceWhite;
                 }
                 else
@@ -2161,9 +2168,56 @@ namespace CountDown
                             "คลิกเพื่อเริ่ม", "CLIQUE PARA COMEÇAR");
             Rect footer = new Rect(panel.x + 14f * scale, y,
                 panel.width - 28f * scale, footerHeight);
-            GUI.Label(footer, start, aimStyle);
+            Rect startRect = new Rect(
+                footer.x, footer.y, footer.width * .46f, footer.height);
+            GUI.Label(startRect, start, aimStyle);
+            DrawGuideUsage(footer, scale);
             if (!languagePanelOpen)
                 DrawGuideDismissAreas(panel, footer);
+        }
+
+        private void DrawGuideUsage(Rect footer, float scale)
+        {
+            Rect usageRect = new Rect(footer.x + footer.width * .46f,
+                footer.y, footer.width * .54f, footer.height);
+            TextAnchor previousAlignment = guideLabelStyle.alignment;
+            int previousSize = guideLabelStyle.fontSize;
+            bool previousWrap = guideLabelStyle.wordWrap;
+            guideLabelStyle.alignment = TextAnchor.MiddleRight;
+            guideLabelStyle.fontSize =
+                Mathf.Max(8, Mathf.RoundToInt(10f * scale));
+            guideLabelStyle.wordWrap = true;
+            GUI.Label(usageRect, GuideUsageText(), guideLabelStyle);
+            guideLabelStyle.alignment = previousAlignment;
+            guideLabelStyle.fontSize = previousSize;
+            guideLabelStyle.wordWrap = previousWrap;
+        }
+
+        private string GuideUsageText()
+        {
+            switch (guideLanguage)
+            {
+                case GuideLanguage.Korean:
+                    return "KR: \uC5B8\uC5B4 \uBCC0\uACBD  X: \uB2EB\uAE30\n\uBC30\uACBD: \uC2DC\uC791 / \uACC4\uC18D";
+                case GuideLanguage.ChineseTraditional:
+                    return "KR: \u8B8A\u66F4\u8A9E\u8A00  X: \u95DC\u9589\n\u80CC\u666F: \u958B\u59CB / \u7E7C\u7E8C";
+                case GuideLanguage.ChineseSimplified:
+                    return "KR: \u66F4\u6539\u8BED\u8A00  X: \u5173\u95ED\n\u80CC\u666F: \u5F00\u59CB / \u7EE7\u7EED";
+                case GuideLanguage.Japanese:
+                    return "KR: \u8A00\u8A9E\u5909\u66F4  X: \u9589\u3058\u308B\n\u80CC\u666F: \u958B\u59CB / \u518D\u958B";
+                case GuideLanguage.French:
+                    return "KR : LANGUE  X : FERMER\nFOND : COMMENCER / REPRENDRE";
+                case GuideLanguage.German:
+                    return "KR: SPRACHE  X: SCHLIESSEN\nHINTERGRUND: START / WEITER";
+                case GuideLanguage.Spanish:
+                    return "KR: IDIOMA  X: CERRAR\nFONDO: INICIAR / CONTINUAR";
+                case GuideLanguage.Thai:
+                    return "KR: \u0E40\u0E1B\u0E25\u0E35\u0E48\u0E22\u0E19\u0E20\u0E32\u0E29\u0E32  X: \u0E1B\u0E34\u0E14\n\u0E1E\u0E37\u0E49\u0E19\u0E2B\u0E25\u0E31\u0E07: \u0E40\u0E23\u0E34\u0E48\u0E21 / \u0E40\u0E25\u0E48\u0E19\u0E15\u0E48\u0E2D";
+                case GuideLanguage.Portuguese:
+                    return "KR: IDIOMA  X: FECHAR\nFUNDO: INICIAR / CONTINUAR";
+                default:
+                    return "KR: LANGUAGE  X: CLOSE\nBACKDROP: START / RESUME";
+            }
         }
 
         private void DrawGuideButton()
@@ -2600,13 +2654,17 @@ namespace CountDown
 
         private void DrawTouchControls()
         {
-            if (inputMode != InputMode.Touch) return;
-            DrawStick(moveTouchId >= 0 ? moveTouchOrigin : new Vector2(92f, 100f),
-                moveTouchId >= 0 ? moveTouchPosition : new Vector2(92f, 100f), "MOVE");
+            if (inputMode != InputMode.Touch || !touchInterfaceDetected) return;
+            Vector2 leftCenter = new Vector2(
+                Screen.width * .125f, Screen.height * .125f);
+            Vector2 rightCenter = new Vector2(
+                Screen.width * .875f, Screen.height * .125f);
+            DrawStick(moveTouchId >= 0 ? moveTouchOrigin : leftCenter,
+                moveTouchId >= 0 ? moveTouchPosition : leftCenter, "MOVE");
             DrawStick(aimTouchId >= 0 ? aimTouchOrigin :
-                    new Vector2(Screen.width - 92f, 100f),
+                    rightCenter,
                 aimTouchId >= 0 ? aimTouchPosition :
-                    new Vector2(Screen.width - 92f, 100f), "AIM");
+                    rightCenter, "AIM");
         }
 
         private string InputHelpText()
@@ -2620,19 +2678,31 @@ namespace CountDown
 
         private void DrawStick(Vector2 origin, Vector2 position, string label)
         {
+            float radius = CurrentTouchStickRadius();
             origin.y = Screen.height - origin.y;
             position.y = Screen.height - position.y;
-            position = origin + Vector2.ClampMagnitude(position - origin, TouchStickRadius);
+            position = origin + Vector2.ClampMagnitude(
+                position - origin, radius);
             GUI.color = new Color(
                 68f / 255f, 68f / 255f, 68f / 255f, .68f);
-            GUI.DrawTexture(new Rect(origin.x - TouchStickRadius, origin.y - TouchStickRadius,
-                TouchStickRadius * 2f, TouchStickRadius * 2f), white);
+            GUI.DrawTexture(new Rect(origin.x - radius, origin.y - radius,
+                radius * 2f, radius * 2f), white);
             GUI.color = new Color(
                 153f / 255f, 153f / 255f, 153f / 255f, .92f);
-            GUI.DrawTexture(new Rect(position.x - 28f, position.y - 28f, 56f, 56f), white);
+            float knobRadius = radius * .38f;
+            GUI.DrawTexture(new Rect(position.x - knobRadius,
+                position.y - knobRadius, knobRadius * 2f, knobRadius * 2f), white);
             GUI.color = Color.white;
-            GUI.Label(new Rect(origin.x - 55f, origin.y + TouchStickRadius + 4f, 110f, 24f),
+            GUI.Label(new Rect(origin.x - radius, origin.y + radius + 4f,
+                    radius * 2f, 24f),
                 label, helpStyle);
+        }
+
+        private static float CurrentTouchStickRadius()
+        {
+            float regionDiameter = Mathf.Min(
+                Screen.width * .25f, Screen.height * .25f);
+            return Mathf.Clamp(regionDiameter * .5f, 72f, 180f);
         }
 
         private void DrawTopStatus()
