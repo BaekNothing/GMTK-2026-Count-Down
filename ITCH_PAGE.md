@@ -36,6 +36,9 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- Removed gray tint from the three help images, moved UI text to a dark
+  high-contrast color, widened the live input-state badge to fit its label,
+  and added dark outlines around world countdown numbers.
 - Reworked generated environment and UI guides around solid white backgrounds
   with mid-gray structural details and dark gray reserved for limited contrast;
   the help backdrop uses a dedicated solid-black dim texture.

@@ -72,6 +72,8 @@ namespace CountDown
         private static readonly Color ResourceWhite = Color.white;
         private static readonly Color ResourceGray =
             new Color(.74f, .74f, .74f, 1f);
+        private static readonly Color TextDark =
+            new Color(.13f, .13f, .13f, 1f);
         private static readonly Color AimLineTint =
             new Color(77f / 255f, 235f / 255f, 1f, 1f);
         private const int FuseSortingOrder = -10;
@@ -1964,48 +1966,48 @@ namespace CountDown
                 alignment = TextAnchor.MiddleCenter,
                 fontSize = Mathf.RoundToInt(Screen.height * .09f),
                 fontStyle = FontStyle.Bold,
-                normal = { textColor = Color.white }
+                normal = { textColor = TextDark }
             };
             labelStyle = new GUIStyle(GUI.skin.label)
             {
                 alignment = TextAnchor.MiddleCenter,
                 fontSize = Mathf.Max(15, Mathf.RoundToInt(Screen.height * .023f)),
                 fontStyle = FontStyle.Bold,
-                normal = { textColor = new Color(.88f, .9f, .92f) }
+                normal = { textColor = TextDark }
             };
             countStyle = new GUIStyle(labelStyle) { fontSize = 30 };
             helpStyle = new GUIStyle(labelStyle)
             {
                 fontSize = Mathf.Max(12, Mathf.RoundToInt(Screen.height * .018f)),
                 fontStyle = FontStyle.Normal,
-                normal = { textColor = new Color(.72f, .75f, .78f) }
+                normal = { textColor = TextDark }
             };
             aimStyle = new GUIStyle(labelStyle)
             {
                 fontSize = Mathf.Max(13, Mathf.RoundToInt(Screen.height * .021f)),
-                normal = { textColor = Color.white }
+                normal = { textColor = TextDark }
             };
             guideTitleStyle = new GUIStyle(labelStyle)
             {
                 alignment = TextAnchor.MiddleLeft,
                 fontSize = Mathf.Max(17, Mathf.RoundToInt(Screen.height * .025f)),
-                normal = { textColor = new Color(.96f, .85f, .38f) }
+                normal = { textColor = TextDark }
             };
             guideLabelStyle = new GUIStyle(labelStyle)
             {
                 alignment = TextAnchor.MiddleLeft,
                 fontSize = Mathf.Max(13, Mathf.RoundToInt(Screen.height * .018f)),
                 wordWrap = true,
-                normal = { textColor = new Color(.93f, .95f, .98f) }
+                normal = { textColor = TextDark }
             };
             guideButtonStyle = new GUIStyle(labelStyle)
             {
                 alignment = TextAnchor.MiddleCenter,
                 fontSize = Mathf.Max(22, Mathf.RoundToInt(Screen.height * .03f)),
                 fontStyle = FontStyle.Bold,
-                normal = { textColor = Color.white },
-                hover = { textColor = new Color(.3f, .82f, 1f) },
-                active = { textColor = new Color(.96f, .85f, .38f) }
+                normal = { textColor = TextDark },
+                hover = { textColor = new Color(.27f, .27f, .27f) },
+                active = { textColor = Color.black }
             };
             ApplyGuideFont();
         }
@@ -2367,7 +2369,7 @@ namespace CountDown
             DrawPanel(imageFrame, new Color(.025f, .03f, .04f, .72f));
             if (image != null)
             {
-                GUI.color = ResourceGray;
+                GUI.color = Color.white;
                 GUI.DrawTexture(imageFrame, image, ScaleMode.ScaleToFit, true);
                 GUI.color = Color.white;
             }
@@ -2473,7 +2475,7 @@ namespace CountDown
             float y = Mathf.Max(8f, Screen.height - safe.yMax + 12f);
             Rect panel = new Rect(x, y, width, height);
             DrawPanel(panel, new Color(.02f, .025f, .03f, .9f));
-            GUI.color = new Color(.82f, .86f, .92f);
+            GUI.color = new Color(.22f, .22f, .22f);
             GUI.DrawTexture(new Rect(panel.x + 8f, panel.y + 8f,
                 textWidth, textHeight), buildVersionTexture, ScaleMode.StretchToFill, true);
             GUI.color = Color.white;
@@ -2539,12 +2541,21 @@ namespace CountDown
 
         private void DrawAimState()
         {
-            Rect badge = new Rect((Screen.width - 220f) * .5f, 82f, 220f, 34f);
+            string mode = inputMode == InputMode.Touch ? "TOUCH" :
+                inputMode == InputMode.Gamepad ? "GAMEPAD" : "CLICK";
+            string status = mode + "  |  " +
+                (player.aiming ? "AIMING" : "MOVE MODE");
+            float measuredWidth = aimStyle.CalcSize(
+                new GUIContent(status)).x + 48f;
+            Rect safe = Screen.safeArea;
+            float width = Mathf.Min(safe.width - 24f,
+                Mathf.Max(300f, measuredWidth));
+            Rect badge = new Rect(
+                safe.xMin + (safe.width - width) * .5f,
+                Screen.height - safe.yMax + 82f, width, 38f);
             DrawPanel(badge, player.aiming
                 ? new Color(.08f, .72f, .38f, .92f)
                 : new Color(.1f, .11f, .12f, .72f));
-            string mode = inputMode == InputMode.Touch ? "TOUCH" :
-                inputMode == InputMode.Gamepad ? "GAMEPAD" : "CLICK";
             GUI.Label(badge, mode + " • " +
                 (player.aiming ? "AIMING" : "MOVE MODE"), aimStyle);
         }
@@ -2628,12 +2639,30 @@ namespace CountDown
                 fighter.count == 1 ? 54f : 64f;
             size += fighter.pulse * 10f;
             countStyle.fontSize = Mathf.RoundToInt(size);
-            countStyle.normal.textColor = fighter.count == 1 ? new Color(1f, .72f, .12f) :
+            Color countColor = fighter.count == 1 ? new Color(1f, .72f, .12f) :
                 fighter.count == 0 ? Color.white : fighter.accent;
-            GUI.Label(new Rect(point.x - 60f, Screen.height - point.y - 34f, 120f, 70f),
-                fighter.count.ToString(), countStyle);
+            DrawOutlinedLabel(new Rect(point.x - 60f,
+                    Screen.height - point.y - 34f, 120f, 70f),
+                fighter.count.ToString(), countStyle, countColor);
             if (!fighter.isPlayer)
                 DrawWorldEnemyHealth(fighter);
+        }
+
+        private static void DrawOutlinedLabel(Rect rect, string text,
+            GUIStyle style, Color fill)
+        {
+            style.normal.textColor = new Color(.08f, .08f, .08f, 1f);
+            const float offset = 2f;
+            GUI.Label(new Rect(rect.x - offset, rect.y, rect.width, rect.height),
+                text, style);
+            GUI.Label(new Rect(rect.x + offset, rect.y, rect.width, rect.height),
+                text, style);
+            GUI.Label(new Rect(rect.x, rect.y - offset, rect.width, rect.height),
+                text, style);
+            GUI.Label(new Rect(rect.x, rect.y + offset, rect.width, rect.height),
+                text, style);
+            style.normal.textColor = fill;
+            GUI.Label(rect, text, style);
         }
 
         private void DrawWorldEnemyHealth(Fighter fighter)

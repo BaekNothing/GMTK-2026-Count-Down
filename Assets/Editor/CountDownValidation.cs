@@ -295,6 +295,9 @@ public static class CountDownValidation
             Require(typeof(CountDownGame).GetMethod("DrawHealthBar",
                     BindingFlags.Instance | BindingFlags.NonPublic) != null,
                 "Player and enemy health must use continuous horizontal bars.");
+            Require(typeof(CountDownGame).GetMethod("DrawOutlinedLabel",
+                    BindingFlags.Static | BindingFlags.NonPublic) != null,
+                "World countdown numbers require a dark contrast outline.");
             Require(typeof(CountDownGame).GetMethod("CreateBuildVersionTexture",
                 BindingFlags.Static | BindingFlags.NonPublic) != null,
                 "Build version text must use an embedded WebGL-safe bitmap font.");
