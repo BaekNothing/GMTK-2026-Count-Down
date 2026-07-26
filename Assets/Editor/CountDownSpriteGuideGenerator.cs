@@ -72,8 +72,8 @@ namespace CountDown.Editor
 
         private static void GenerateBackgroundAndUiResourceGuides()
         {
-            GenerateTile("FloorTile", GuideWhite, GuideDark, false);
-            GenerateTile("WallTile", GuideWhite, GuideDark, true);
+            GenerateTile("FloorTile", GuideWhite, GuideGray, false);
+            GenerateTile("WallTile", GuideWhite, GuideGray, true);
             GenerateTile("FloorMark", new Color32(0, 0, 0, 0),
                 new Color32(255, 255, 255, 190), false);
             GeneratePanel("GuidePanel", 512, 512, GuideWhite);
@@ -93,17 +93,28 @@ namespace CountDown.Editor
             Color32 detail, bool planks)
         {
             const int size = 256;
-            var texture = baseColor.a == 0
-                ? NewTexture(size, size, baseColor)
-                : NewPaletteTexture(size, size);
+            var texture = NewTexture(size, size, baseColor);
             Color32[] pixels = texture.GetPixels32();
-            DrawGuideGrid(pixels, size, size,
-                new Color32(153, 153, 153, 180));
-            int spacing = planks ? 32 : 64;
-            for (int i = 0; i < size; i += spacing)
+            if (planks)
             {
-                DrawLine(pixels, size, i, 0, i, size - 1, detail, 2);
-                DrawLine(pixels, size, 0, i, size - 1, i, detail, 2);
+                for (int y = 32; y < size; y += 48)
+                {
+                    DrawLine(pixels, size, 0, y, size - 1, y, detail, 2);
+                    int seam = ((y / 48) % 2 == 0) ? 92 : 164;
+                    DrawLine(pixels, size, seam, y - 24,
+                        seam, y + 24, detail, 2);
+                }
+            }
+            else
+            {
+                DrawLine(pixels, size, 4, 4, size - 5, 4, detail, 3);
+                DrawLine(pixels, size, size - 5, 4,
+                    size - 5, size - 5, detail, 3);
+                DrawLine(pixels, size, size - 5, size - 5,
+                    4, size - 5, detail, 3);
+                DrawLine(pixels, size, 4, size - 5, 4, 4, detail, 3);
+                DrawLine(pixels, size, 42, 128, 102, 128, detail, 3);
+                DrawLine(pixels, size, 154, 128, 214, 128, detail, 3);
             }
             texture.SetPixels32(pixels);
             Save(texture, OutputDirectory + "/" + name + ".png");
@@ -171,12 +182,9 @@ namespace CountDown.Editor
         private static void GeneratePanel(string name, int width, int height,
             Color32 color, bool vignette = false)
         {
-            var texture = vignette
-                ? NewTexture(width, height, new Color32(0, 0, 0, 0))
-                : NewPaletteTexture(width, height);
+            var texture = NewTexture(width, height,
+                vignette ? new Color32(0, 0, 0, 0) : color);
             Color32[] p = texture.GetPixels32();
-            DrawGuideGrid(p, width, height,
-                new Color32(153, 153, 153, 72));
             if (vignette)
             {
                 Vector2 center = new Vector2(width, height) * .5f;
@@ -193,9 +201,9 @@ namespace CountDown.Editor
             else
             {
                 DrawLine(p, width, 3, 3, width - 4, 3,
-                    GuideWhite, 6);
+                    GuideGray, 6);
                 DrawLine(p, width, 3, height - 4, width - 4, height - 4,
-                    GuideWhite, 6);
+                    GuideGray, 6);
             }
             texture.SetPixels32(p);
             Save(texture, OutputDirectory + "/" + name + ".png");
@@ -206,21 +214,15 @@ namespace CountDown.Editor
         {
             var texture = NewTexture(width, height, transparent
                 ? new Color32(0, 0, 0, 0) : GuideWhite);
-            if (!transparent)
-            {
-                Object.DestroyImmediate(texture);
-                texture = NewPaletteTexture(width, height);
-            }
             Color32[] p = texture.GetPixels32();
             var guide = new Color32(153, 153, 153,
                 transparent ? (byte)120 : (byte)180);
-            DrawGuideGrid(p, width, height, guide);
             DrawLine(p, width, 0, height / 3, width - 1, height / 3, guide, 4);
             DrawLine(p, width, 0, height * 2 / 3, width - 1, height * 2 / 3,
                 guide, 4);
             DrawLine(p, width, 0, height / 2, width - 1, height / 2,
-                new Color32(255, 255, 255,
-                    transparent ? (byte)150 : (byte)210), 2);
+                new Color32(68, 68, 68,
+                    transparent ? (byte)110 : (byte)170), 2);
             texture.SetPixels32(p);
             Save(texture, OutputDirectory + "/" + name + ".png");
         }
@@ -246,23 +248,6 @@ namespace CountDown.Editor
             var texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
             var pixels = new Color32[width * height];
             for (int i = 0; i < pixels.Length; i++) pixels[i] = color;
-            texture.SetPixels32(pixels);
-            return texture;
-        }
-
-        private static Texture2D NewPaletteTexture(int width, int height)
-        {
-            var texture = new Texture2D(
-                width, height, TextureFormat.RGBA32, false);
-            var pixels = new Color32[width * height];
-            const int blockSize = 24;
-            for (int y = 0; y < height; y++)
-            for (int x = 0; x < width; x++)
-            {
-                int bucket = ((x / blockSize) + (y / blockSize) * 3) % 10;
-                pixels[y * width + x] = bucket < 6
-                    ? GuideWhite : bucket < 9 ? GuideGray : GuideDark;
-            }
             texture.SetPixels32(pixels);
             return texture;
         }
