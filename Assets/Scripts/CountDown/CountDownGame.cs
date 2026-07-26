@@ -2131,7 +2131,7 @@ namespace CountDown
             float centeredPanelX =
                 safe.xMin + (safe.width - width) * .5f;
             float sidebarTarget =
-                Mathf.Min(840f * scale, safe.width * .8f);
+                Mathf.Min(3360f * scale, safe.width * 3.2f);
             float panelX = Mathf.Max(safe.xMin + 12f,
                 Mathf.Min(centeredPanelX,
                     safe.xMax - width - sidebarTarget - 18f * scale));
