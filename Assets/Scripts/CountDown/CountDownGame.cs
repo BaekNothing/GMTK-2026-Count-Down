@@ -74,8 +74,10 @@ namespace CountDown
             new Color(.74f, .74f, .74f, 1f);
         private static readonly Color TextDark =
             new Color(.13f, .13f, .13f, 1f);
-        private static readonly Color AimLineTint =
-            new Color(77f / 255f, 235f / 255f, 1f, 1f);
+        private static readonly Color PlayerAimLineColor =
+            new Color(77f / 255f, 1f, 136f / 255f, 1f);
+        private static readonly Color EnemyAimLineColor =
+            new Color(1f, 90f / 255f, 90f / 255f, 1f);
         private const int FuseSortingOrder = -10;
         private const int FuseFlameSortingOrder = -9;
         private const int FuseAlertSortingOrder = -8;
@@ -1292,9 +1294,12 @@ namespace CountDown
                 width *= Mathf.Lerp(.35f, 1.8f, Mathf.PingPong(Time.time * 8f, 1f));
             fighter.laser.startWidth = width;
             fighter.laser.endWidth = width * .55f;
+            Color baseBeamColor = fighter.isPlayer
+                ? PlayerAimLineColor : EnemyAimLineColor;
             Color beamColor = fighter.hasTarget
-                ? AimLineTint
-                : new Color(AimLineTint.r, AimLineTint.g, AimLineTint.b, .78f);
+                ? baseBeamColor
+                : new Color(baseBeamColor.r, baseBeamColor.g,
+                    baseBeamColor.b, .78f);
             fighter.laser.startColor = beamColor;
             fighter.laser.endColor = new Color(
                 beamColor.r, beamColor.g, beamColor.b, .3f);
@@ -2602,10 +2607,12 @@ namespace CountDown
             origin.y = Screen.height - origin.y;
             position.y = Screen.height - position.y;
             position = origin + Vector2.ClampMagnitude(position - origin, TouchStickRadius);
-            GUI.color = new Color(1f, 1f, 1f, .16f);
+            GUI.color = new Color(
+                68f / 255f, 68f / 255f, 68f / 255f, .68f);
             GUI.DrawTexture(new Rect(origin.x - TouchStickRadius, origin.y - TouchStickRadius,
                 TouchStickRadius * 2f, TouchStickRadius * 2f), white);
-            GUI.color = new Color(1f, 1f, 1f, .42f);
+            GUI.color = new Color(
+                153f / 255f, 153f / 255f, 153f / 255f, .92f);
             GUI.DrawTexture(new Rect(position.x - 28f, position.y - 28f, 56f, 56f), white);
             GUI.color = Color.white;
             GUI.Label(new Rect(origin.x - 55f, origin.y + TouchStickRadius + 4f, 110f, 24f),

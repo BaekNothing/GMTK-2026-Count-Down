@@ -36,6 +36,8 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- Split procedural aim lines by team with vivid green for the player and red
+  for enemies, and moved mobile virtual sticks to #999999/#444444 gray tones.
 - Changed the language button to a solid #999999 panel, replaced the aim-line
   texture with bright procedural Unlit geometry, and reduced each gun to a
   texture-free black box.
