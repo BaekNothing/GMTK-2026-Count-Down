@@ -211,6 +211,17 @@ public static class CountDownValidation
             Transform playerRoot = Find("PLAYER").transform;
             Transform targetRoot = Find("TARGET").transform;
             Transform playerGun = playerRoot.Find("Gun Pivot");
+            Renderer gunRenderer = playerGun.Find("Replaceable Gun")
+                .GetComponent<Renderer>();
+            LineRenderer playerLaser = playerRoot.Find("Laser")
+                .GetComponent<LineRenderer>();
+            Require(gunRenderer.material.mainTexture == null &&
+                gunRenderer.material.color.maxColorComponent <= .01f,
+                "Character guns must be texture-free black boxes.");
+            Require(playerLaser.material.mainTexture == null &&
+                playerLaser.sortingOrder == 100 &&
+                playerLaser.numCapVertices == 4,
+                "Aim lines must use visible texture-free procedural geometry.");
             Vector3 targetDirection = targetRoot.position +
                 Vector3.up * .85f - playerGun.position;
             targetDirection.y = 0f;

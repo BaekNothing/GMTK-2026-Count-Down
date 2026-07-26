@@ -36,6 +36,9 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- Changed the language button to a solid #999999 panel, replaced the aim-line
+  texture with bright procedural Unlit geometry, and reduced each gun to a
+  texture-free black box.
 - Removed gray tint from the three help images, moved UI text to a dark
   high-contrast color, widened the live input-state badge to fit its label,
   and added dark outlines around world countdown numbers.

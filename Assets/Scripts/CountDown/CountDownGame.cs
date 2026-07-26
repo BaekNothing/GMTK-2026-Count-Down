@@ -381,8 +381,7 @@ namespace CountDown
             gun.transform.localPosition = new Vector3(0f, 0f, .38f);
             gun.transform.localScale = new Vector3(.16f, .16f, .78f);
             Renderer gunRenderer = gun.GetComponent<Renderer>();
-            gunRenderer.material = MaterialFor(null, ResourceGray);
-            ApplyMockTexture(gunRenderer.material, "Gun", Vector2.one);
+            gunRenderer.material = CreateUnlitMaterial(Color.black, 2000);
             Destroy(gun.GetComponent<Collider>());
 
             var muzzle = NewObject("Muzzle").transform;
@@ -393,13 +392,15 @@ namespace CountDown
             laser.transform.SetParent(root.transform);
             laser.positionCount = 2;
             laser.useWorldSpace = true;
-            laser.material = MaterialFor(null, Color.white);
-            ApplyMockTexture(laser.material, "AimLine", Vector2.one);
-            laser.textureMode = LineTextureMode.Tile;
+            laser.material = CreateUnlitMaterial(Color.white, 3500);
+            laser.textureMode = LineTextureMode.Stretch;
             laser.startColor = laser.endColor = Color.white;
             laser.startWidth = .024f;
             laser.endWidth = .014f;
+            laser.numCapVertices = 4;
+            laser.sortingOrder = 100;
             laser.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            laser.receiveShadows = false;
 
             var fighter = new Fighter
             {
@@ -621,6 +622,22 @@ namespace CountDown
             var material = new Material(shader);
             material.color = fallback;
             material.renderQueue = renderQueue;
+            return material;
+        }
+
+        private static Material CreateUnlitMaterial(
+            Color color, int renderQueue)
+        {
+            Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (shader == null) shader = Shader.Find("Unlit/Color");
+            if (shader == null) shader = Shader.Find("Sprites/Default");
+            if (shader == null) shader = Shader.Find("Standard");
+            var material = new Material(shader)
+            {
+                color = color,
+                renderQueue = renderQueue,
+                mainTexture = null
+            };
             return material;
         }
 
@@ -2198,7 +2215,7 @@ namespace CountDown
         {
             Rect button = new Rect(guidePanel.xMax - 108f * scale,
                 guidePanel.y + 6f * scale, 90f * scale, 51f * scale);
-            DrawPanel(button, new Color(.08f, .16f, .2f, .96f));
+            DrawSolidPanel(button, new Color(.6f, .6f, .6f, 1f));
             DrawFittedLabel(button, LanguageCode(guideLanguage),
                 guideButtonStyle, Mathf.Max(12, Mathf.RoundToInt(12f * scale)));
             if (!languagePanelOpen && PointerReleasedIn(button))
@@ -2727,6 +2744,13 @@ namespace CountDown
             GUI.color = guidePanelImage != null ? Color.white : color;
             GUI.DrawTexture(rect, guidePanelImage != null ? guidePanelImage : white,
                 ScaleMode.StretchToFill, true);
+            GUI.color = Color.white;
+        }
+
+        private void DrawSolidPanel(Rect rect, Color color)
+        {
+            GUI.color = color;
+            GUI.DrawTexture(rect, white, ScaleMode.StretchToFill, true);
             GUI.color = Color.white;
         }
 
