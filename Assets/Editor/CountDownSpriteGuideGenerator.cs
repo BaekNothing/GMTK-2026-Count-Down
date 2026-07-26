@@ -9,6 +9,9 @@ namespace CountDown.Editor
         private const int CellSize = 128;
         private const int Columns = 4;
         private const string OutputDirectory = "Assets/Resources/CountDown/Sprites";
+        private static readonly Color32 GuideWhite = new Color32(255, 255, 255, 255);
+        private static readonly Color32 GuideGray = new Color32(153, 153, 153, 255);
+        private static readonly Color32 GuideDark = new Color32(68, 68, 68, 255);
 
         [MenuItem("COUNT DOWN/Regenerate Sprite Guides")]
         public static void Generate()
@@ -36,14 +39,19 @@ namespace CountDown.Editor
             Debug.Log("COUNT DOWN sprite guides generated successfully.");
         }
 
+        public static void RegenerateBackgroundAndUiGuides()
+        {
+            Directory.CreateDirectory(OutputDirectory);
+            GenerateBackgroundAndUiResourceGuides();
+            AssetDatabase.Refresh();
+            ConfigureSingleSprite(OutputDirectory + "/BackgroundNear.png");
+            AssetDatabase.SaveAssets();
+            Debug.Log("COUNT DOWN background and UI guides generated successfully.");
+        }
+
         private static void GenerateResourceGuides()
         {
-            GenerateTile("FloorTile", new Color32(47, 57, 58, 255),
-                new Color32(72, 84, 78, 255), false);
-            GenerateTile("WallTile", new Color32(89, 70, 48, 255),
-                new Color32(148, 118, 72, 255), true);
-            GenerateTile("FloorMark", new Color32(0, 0, 0, 0),
-                new Color32(132, 157, 134, 190), false);
+            GenerateBackgroundAndUiResourceGuides();
             GenerateIcon("Gun", MockShape.Gun, new Color32(40, 45, 49, 255));
             GenerateIcon("Stand", MockShape.Disc, new Color32(24, 27, 30, 255));
             GenerateIcon("AimLine", MockShape.Line, new Color32(255, 255, 255, 255));
@@ -57,15 +65,24 @@ namespace CountDown.Editor
             GenerateIcon("Crosshair", MockShape.Crosshair, new Color32(255, 255, 255, 230));
             GenerateIcon("HealthPip", MockShape.Heart, new Color32(255, 72, 76, 255));
             GenerateIcon("TouchStick", MockShape.Ring, new Color32(255, 255, 255, 110));
-            GeneratePanel("GuidePanel", 512, 512, new Color32(18, 24, 29, 238));
-            GeneratePanel("HudPanel", 256, 128, new Color32(18, 24, 29, 218));
-            GeneratePanel("Button", 192, 96, new Color32(42, 72, 82, 245));
-            GeneratePanel("AimVignette", 512, 512, new Color32(5, 9, 13, 190), true);
-            GenerateBackgroundGuide("BackgroundFar", 1536, 512, false);
-            GenerateBackgroundGuide("BackgroundNear", 1024, 256, true);
             GenerateGuideCard("Move", new Color32(56, 184, 255, 255), 0);
             GenerateGuideCard("Dash", new Color32(255, 184, 58, 255), 1);
             GenerateGuideCard("Melee", new Color32(78, 244, 144, 255), 2);
+        }
+
+        private static void GenerateBackgroundAndUiResourceGuides()
+        {
+            GenerateTile("FloorTile", GuideDark, GuideGray, false);
+            GenerateTile("WallTile", GuideDark, GuideGray, true);
+            GenerateTile("FloorMark", new Color32(0, 0, 0, 0),
+                new Color32(255, 255, 255, 190), false);
+            GeneratePanel("GuidePanel", 512, 512, GuideDark);
+            GeneratePanel("HudPanel", 256, 128, GuideDark);
+            GeneratePanel("Button", 192, 96, GuideGray);
+            GeneratePanel("AimVignette", 512, 512,
+                new Color32(68, 68, 68, 190), true);
+            GenerateBackgroundGuide("BackgroundFar", 1536, 512, false);
+            GenerateBackgroundGuide("BackgroundNear", 1024, 256, true);
         }
 
         private enum MockShape { Gun, Disc, Line, Ring, Burst, Warning, Crosshair, Heart }
@@ -152,7 +169,8 @@ namespace CountDown.Editor
             var texture = NewTexture(width, height,
                 vignette ? new Color32(0, 0, 0, 0) : color);
             Color32[] p = texture.GetPixels32();
-            DrawGuideGrid(p, width, height, new Color32(88, 218, 235, 72));
+            DrawGuideGrid(p, width, height,
+                new Color32(153, 153, 153, 72));
             if (vignette)
             {
                 Vector2 center = new Vector2(width, height) * .5f;
@@ -169,9 +187,9 @@ namespace CountDown.Editor
             else
             {
                 DrawLine(p, width, 3, 3, width - 4, 3,
-                    new Color32(88, 218, 235, 255), 6);
+                    GuideWhite, 6);
                 DrawLine(p, width, 3, height - 4, width - 4, height - 4,
-                    new Color32(88, 218, 235, 255), 6);
+                    GuideWhite, 6);
             }
             texture.SetPixels32(p);
             Save(texture, OutputDirectory + "/" + name + ".png");
@@ -182,13 +200,17 @@ namespace CountDown.Editor
         {
             var texture = NewTexture(width, height, transparent
                 ? new Color32(0, 0, 0, 0)
-                : new Color32(24, 43, 55, 255));
+                : GuideDark);
             Color32[] p = texture.GetPixels32();
-            var guide = new Color32(92, 218, 225, transparent ? (byte)120 : (byte)180);
+            var guide = new Color32(153, 153, 153,
+                transparent ? (byte)120 : (byte)180);
             DrawGuideGrid(p, width, height, guide);
             DrawLine(p, width, 0, height / 3, width - 1, height / 3, guide, 4);
             DrawLine(p, width, 0, height * 2 / 3, width - 1, height * 2 / 3,
                 guide, 4);
+            DrawLine(p, width, 0, height / 2, width - 1, height / 2,
+                new Color32(255, 255, 255,
+                    transparent ? (byte)150 : (byte)210), 2);
             texture.SetPixels32(p);
             Save(texture, OutputDirectory + "/" + name + ".png");
         }

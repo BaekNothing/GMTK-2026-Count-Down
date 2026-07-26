@@ -36,6 +36,10 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- Replaced both character sheets with the latest uploaded PNG artwork while
+  preserving the existing player and enemy animation slicing.
+- Rolled the character gun back to its original guide art and regenerated the
+  background and UI guides around #FFFFFF, #999999, and #444444.
 - Restored the original background and UI treatment, moved gameplay art to a
   neutral white-and-gray palette, and tightened fuse links into a continuous wick.
 - Enlarged the three detailed control-guide images by another 1.3 times and
