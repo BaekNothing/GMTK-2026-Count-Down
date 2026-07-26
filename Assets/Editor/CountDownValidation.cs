@@ -277,6 +277,9 @@ public static class CountDownValidation
                 typeof(CountDownGame).GetMethod("SetGuideOpen",
                     BindingFlags.Instance | BindingFlags.NonPublic) != null,
                 "A top-right help button must pause and reopen the guide.");
+            Require(typeof(CountDownGame).GetMethod("DrawGuideCloseButton",
+                    BindingFlags.Instance | BindingFlags.NonPublic) != null,
+                "The guide requires an explicit close button beside language.");
             Require(HasConstant("GuideImageDisplayScale", 2.34f),
                 "Guide detail resources must render 1.3 times larger than the previous layout.");
             Require(typeof(CountDownGame).GetMethod("DrawLanguagePanel",

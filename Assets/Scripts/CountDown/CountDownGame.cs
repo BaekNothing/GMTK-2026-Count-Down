@@ -2100,11 +2100,12 @@ namespace CountDown
 
             DrawPanel(panel, new Color(.025f, .03f, .04f, .82f));
             GUI.Label(new Rect(panel.x + 20f * scale, panel.y + 8f * scale,
-                panel.width - 145f * scale, 38f * scale),
+                panel.width - 190f * scale, 38f * scale),
                 Localized("CONTROLS", "조작 가이드", "操作指南", "操作指南",
                     "操作ガイド", "COMMANDES", "STEUERUNG", "CONTROLES",
                     "วิธีควบคุม", "COMANDOS"), guideTitleStyle);
             DrawLanguageButton(panel, scale);
+            DrawGuideCloseButton(panel, scale);
 
             float y = panel.y + 50f * scale;
             DrawGuideSection(new Rect(panel.x + 14f * scale, y,
@@ -2218,13 +2219,28 @@ namespace CountDown
 
         private void DrawLanguageButton(Rect guidePanel, float scale)
         {
-            Rect button = new Rect(guidePanel.xMax - 108f * scale,
+            Rect button = new Rect(guidePanel.xMax - 150f * scale,
                 guidePanel.y + 6f * scale, 90f * scale, 51f * scale);
             DrawSolidPanel(button, new Color(.6f, .6f, .6f, 1f));
             DrawFittedLabel(button, LanguageCode(guideLanguage),
                 guideButtonStyle, Mathf.Max(12, Mathf.RoundToInt(12f * scale)));
             if (!languagePanelOpen && PointerReleasedIn(button))
                 OpenLanguagePanel();
+        }
+
+        private void DrawGuideCloseButton(Rect guidePanel, float scale)
+        {
+            Rect button = new Rect(guidePanel.xMax - 50f * scale,
+                guidePanel.y + 14f * scale, 34f * scale, 34f * scale);
+            DrawSolidPanel(button, new Color(.6f, .6f, .6f, 1f));
+            GUI.Label(button, "X", guideButtonStyle);
+            if (!languagePanelOpen && PointerReleasedIn(button))
+            {
+                if (awaitingStart)
+                    awaitingStart = false;
+                else
+                    SetGuideOpen(false);
+            }
         }
 
         private static bool PointerReleasedIn(Rect rect)
