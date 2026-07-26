@@ -36,6 +36,9 @@ The distance from each initial touch point controls stick strength.
 
 ## Latest update
 
+- Removed tinting from authored floor, background, and UI textures, regenerated
+  the floor guides in the monochrome palette, and replaced heart/pip health
+  displays with continuous horizontal health bars.
 - Replaced both character sheets with the latest uploaded PNG artwork while
   preserving the existing player and enemy animation slicing.
 - Rolled the character gun back to its original guide art and regenerated the

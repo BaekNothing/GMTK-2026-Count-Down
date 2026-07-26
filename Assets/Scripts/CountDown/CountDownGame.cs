@@ -135,7 +135,6 @@ namespace CountDown
         private Texture2D guideMeleeImage;
         private Texture2D guidePanelImage;
         private Texture2D crosshairImage;
-        private Texture2D healthPipImage;
         private Texture2D buildVersionTexture;
         private int moveTouchId = -1;
         private int aimTouchId = -1;
@@ -172,8 +171,6 @@ namespace CountDown
                 "CountDown/Sprites/GuidePanel");
             crosshairImage = Resources.Load<Texture2D>(
                 "CountDown/Sprites/Crosshair");
-            healthPipImage = Resources.Load<Texture2D>(
-                "CountDown/Sprites/HealthPip");
             guideFont = Resources.Load<Font>("CountDown/Fonts/GuideKorean");
             guideLatinFont = Resources.Load<Font>("CountDown/Fonts/GuideLatin");
             guideThaiFont = Resources.Load<Font>("CountDown/Fonts/GuideThai");
@@ -268,6 +265,7 @@ namespace CountDown
                 "Materials/Floor", new Color(.13f, .145f, .16f), 1000);
             ApplyMockTexture(floorRenderer.material, "FloorTile",
                 new Vector2(ArenaWidth / 4f, ArenaDepth / 4f));
+            floorRenderer.material.color = Color.white;
             floorRenderer.sortingOrder = -1000;
 
             CreateBoundary(new Vector3(0f, .15f, ArenaDepth * .5f + .2f),
@@ -298,6 +296,7 @@ namespace CountDown
             renderer.material = MaterialFor(null, new Color(.65f, .58f, .38f), 1002);
             ApplyMockTexture(renderer.material, "WallTile",
                 new Vector2(Mathf.Max(scale.x, scale.z) / 2f, 1f));
+            renderer.material.color = Color.white;
             renderer.sortingOrder = -998;
             Destroy(go.GetComponent<Collider>());
         }
@@ -312,6 +311,7 @@ namespace CountDown
             Renderer renderer = go.GetComponent<Renderer>();
             renderer.material = MaterialFor(null, new Color(.24f, .255f, .27f), 1001);
             ApplyMockTexture(renderer.material, "FloorMark", Vector2.one);
+            renderer.material.color = Color.white;
             renderer.sortingOrder = -999;
             Destroy(go.GetComponent<Collider>());
         }
@@ -2574,7 +2574,7 @@ namespace CountDown
             Fighter target = player.opponent != null && !player.opponent.dead
                 ? player.opponent : ClosestAliveEnemy();
             if (target != null)
-                DrawHearts(new Rect(panel.x + 16f, panel.y + 29f,
+                DrawHealthBar(new Rect(panel.x + 16f, panel.y + 31f,
                     width - 32f, 18f), target.health, false);
         }
 
@@ -2583,7 +2583,7 @@ namespace CountDown
             Rect panel = new Rect(20f, Screen.height - 126f, 260f, 74f);
             DrawPanel(panel, new Color(.05f, .06f, .07f, .82f));
             GUI.Label(new Rect(panel.x + 10f, panel.y + 4f, 90f, 20f), "PLAYER", helpStyle);
-            DrawHearts(new Rect(panel.x + 108f, panel.y + 8f, 135f, 16f),
+            DrawHealthBar(new Rect(panel.x + 108f, panel.y + 8f, 135f, 16f),
                 player.health, true);
             float cooldown = Mathf.Clamp01(
                 1f - (meleeReadyAt - Time.time) / MeleeCooldown);
@@ -2619,24 +2619,11 @@ namespace CountDown
                 fighter.root.position + Vector3.up * 2.02f);
             if (point.z <= 0f) return;
 
-            const float cellWidth = 18f;
-            const float cellHeight = 7f;
-            const float gap = 3f;
-            const float padding = 4f;
-            float width = cellWidth * MaxHealth + gap * (MaxHealth - 1);
-            Rect panel = new Rect(point.x - width * .5f - padding,
-                Screen.height - point.y - cellHeight * .5f - padding,
-                width + padding * 2f, cellHeight + padding * 2f);
-            DrawPanel(panel, new Color(.025f, .03f, .04f, .78f));
-            for (int i = 0; i < MaxHealth; i++)
-            {
-                GUI.color = i < fighter.health
-                    ? new Color(1f, .25f, .18f)
-                    : new Color(.17f, .18f, .2f);
-                GUI.DrawTexture(new Rect(panel.x + padding + i * (cellWidth + gap),
-                    panel.y + padding, cellWidth, cellHeight), white);
-            }
-            GUI.color = Color.white;
+            const float width = 64f;
+            const float height = 9f;
+            DrawHealthBar(new Rect(point.x - width * .5f,
+                Screen.height - point.y - height * .5f,
+                width, height), fighter.health, false);
         }
 
         private void DrawCrosshair()
@@ -2665,30 +2652,27 @@ namespace CountDown
             GUI.color = Color.white;
         }
 
-        private void DrawHearts(Rect rect, int health, bool playerSide)
+        private void DrawHealthBar(Rect rect, int health, bool playerSide)
         {
-            float gap = 7f;
-            float cell = (rect.width - gap * 2f) / 3f;
-            for (int i = 0; i < 3; i++)
-            {
-                bool hasResource = healthPipImage != null;
-                GUI.color = hasResource
-                    ? new Color(1f, 1f, 1f, i < health ? 1f : .22f)
-                    : i < health
-                        ? (playerSide
-                            ? new Color(.12f, .72f, 1f)
-                            : new Color(1f, .25f, .18f))
-                        : new Color(.18f, .19f, .2f);
-                GUI.DrawTexture(new Rect(rect.x + i * (cell + gap), rect.y,
-                    cell, rect.height), healthPipImage != null ? healthPipImage : white,
-                    ScaleMode.ScaleToFit, true);
-            }
+            GUI.color = new Color(.12f, .12f, .12f, .92f);
+            GUI.DrawTexture(rect, white);
+            float padding = Mathf.Max(2f,
+                Mathf.Min(rect.width, rect.height) * .14f);
+            Rect track = new Rect(rect.x + padding, rect.y + padding,
+                Mathf.Max(0f, rect.width - padding * 2f),
+                Mathf.Max(0f, rect.height - padding * 2f));
+            GUI.color = new Color(.27f, .27f, .27f, 1f);
+            GUI.DrawTexture(track, white);
+            float ratio = Mathf.Clamp01(health / (float)MaxHealth);
+            GUI.color = playerSide ? Color.white : ResourceGray;
+            GUI.DrawTexture(new Rect(track.x, track.y, track.width * ratio,
+                track.height), white);
             GUI.color = Color.white;
         }
 
         private void DrawPanel(Rect rect, Color color)
         {
-            GUI.color = color;
+            GUI.color = guidePanelImage != null ? Color.white : color;
             GUI.DrawTexture(rect, guidePanelImage != null ? guidePanelImage : white,
                 ScaleMode.StretchToFill, true);
             GUI.color = Color.white;

@@ -288,7 +288,10 @@ public static class CountDownValidation
                 "The guide requires its bundled WebGL-safe Thai font.");
             Require(typeof(CountDownGame).GetMethod("DrawWorldEnemyHealth",
                 BindingFlags.Instance | BindingFlags.NonPublic) != null,
-                "Each enemy requires a world-space three-slot health display.");
+                "Each enemy requires a world-space health display.");
+            Require(typeof(CountDownGame).GetMethod("DrawHealthBar",
+                    BindingFlags.Instance | BindingFlags.NonPublic) != null,
+                "Player and enemy health must use continuous horizontal bars.");
             Require(typeof(CountDownGame).GetMethod("CreateBuildVersionTexture",
                 BindingFlags.Static | BindingFlags.NonPublic) != null,
                 "Build version text must use an embedded WebGL-safe bitmap font.");
