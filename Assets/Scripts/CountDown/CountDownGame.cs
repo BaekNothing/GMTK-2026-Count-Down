@@ -2130,13 +2130,8 @@ namespace CountDown
             float height = 52f * scale + rowHeight * 3f + footerHeight;
             float centeredPanelX =
                 safe.xMin + (safe.width - width) * .5f;
-            float sidebarTarget =
-                Mathf.Min(3360f * scale, safe.width * 3.2f);
-            float panelX = Mathf.Max(safe.xMin + 12f,
-                Mathf.Min(centeredPanelX,
-                    safe.xMax - width - sidebarTarget - 18f * scale));
             Rect panel = new Rect(
-                panelX,
+                centeredPanelX,
                 Screen.height - safe.yMax + Mathf.Max(18f * scale,
                     (safe.height - height) * .5f),
                 width, height);
@@ -2224,16 +2219,20 @@ namespace CountDown
             guideLabelStyle.alignment = TextAnchor.UpperLeft;
             guideLabelStyle.fontSize =
                 Mathf.Max(10, Mathf.RoundToInt(14f * scale));
-            guideLabelStyle.wordWrap = true;
+            guideLabelStyle.wordWrap = false;
             guideLabelStyle.normal.textColor = Color.white;
             string usageText =
                 GuideUsageText() + "\n\n" + GuideGameDescription();
             GUIContent usageContent = new GUIContent(usageText);
             int minimumFontSize = Mathf.Max(8, Mathf.RoundToInt(9f * scale));
+            Vector2 usageSize = guideLabelStyle.CalcSize(usageContent);
             while (guideLabelStyle.fontSize > minimumFontSize &&
-                   guideLabelStyle.CalcHeight(usageContent, usageRect.width) >
-                   usageRect.height)
+                   (usageSize.x > usageRect.width ||
+                    usageSize.y > usageRect.height))
+            {
                 guideLabelStyle.fontSize--;
+                usageSize = guideLabelStyle.CalcSize(usageContent);
+            }
             GUI.Label(usageRect, usageContent, guideLabelStyle);
             guideLabelStyle.alignment = previousAlignment;
             guideLabelStyle.fontSize = previousSize;
