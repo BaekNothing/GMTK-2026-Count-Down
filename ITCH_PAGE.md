@@ -39,6 +39,9 @@ The distance from each initial touch point controls stick strength.
 - Restored the guide panel to the center and removed unintended automatic
   wrapping from the external instructions. The copy now keeps only its authored
   line breaks and shrinks when necessary to fit the available right-side area.
+- Rebuilt the bundled guide font with every Korean glyph used by the localized
+  help copy, and corrected multiline fitting to measure each authored line
+  independently.
 - Widened the guide's external instruction column and aligned its first line
   exactly with the top edge of the guide popup.
 - Moved the localized controls and game explanation outside the guide panel on

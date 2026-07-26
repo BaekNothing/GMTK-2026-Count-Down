@@ -2225,19 +2225,37 @@ namespace CountDown
                 GuideUsageText() + "\n\n" + GuideGameDescription();
             GUIContent usageContent = new GUIContent(usageText);
             int minimumFontSize = Mathf.Max(8, Mathf.RoundToInt(9f * scale));
-            Vector2 usageSize = guideLabelStyle.CalcSize(usageContent);
+            Vector2 usageSize =
+                MeasureUnwrappedText(guideLabelStyle, usageText);
             while (guideLabelStyle.fontSize > minimumFontSize &&
                    (usageSize.x > usageRect.width ||
                     usageSize.y > usageRect.height))
             {
                 guideLabelStyle.fontSize--;
-                usageSize = guideLabelStyle.CalcSize(usageContent);
+                usageSize = MeasureUnwrappedText(
+                    guideLabelStyle, usageText);
             }
             GUI.Label(usageRect, usageContent, guideLabelStyle);
             guideLabelStyle.alignment = previousAlignment;
             guideLabelStyle.fontSize = previousSize;
             guideLabelStyle.wordWrap = previousWrap;
             guideLabelStyle.normal.textColor = previousColor;
+        }
+
+        private static Vector2 MeasureUnwrappedText(
+            GUIStyle style, string text)
+        {
+            string[] lines = text.Split('\n');
+            float width = 0f;
+            float height = 0f;
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string line = lines[i].Length > 0 ? lines[i] : " ";
+                Vector2 lineSize = style.CalcSize(new GUIContent(line));
+                width = Mathf.Max(width, lineSize.x);
+                height += lineSize.y;
+            }
+            return new Vector2(width, height);
         }
 
         private string GuideUsageText()
